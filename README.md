@@ -1,0 +1,1 @@
+# HCAI-Learning-_Norwegian_Language-App
