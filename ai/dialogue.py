@@ -1,160 +1,77 @@
 """
-Norwegian dialogue practice using AI language models.
-This module provides conversational AI for practicing Norwegian.
-"""
-import os
-from typing import Optional
+ai/dialogue.py
 
+Norwegian conversation generator using OpenAI GPT-3.5-turbo.
+Requires environment variable OPENAI_API_KEY.
+
+Class:
+    NorwegianDialogueAI:
+        - generate_response(user_message, difficulty="easy"): Gets Norwegian reply and English translation.
+
+Usage example:
+    ai = NorwegianDialogueAI()
+    reply = ai.generate_response("Hei! Hvordan har du det?", difficulty="easy")
+    print(reply)
+"""
+
+import os
+import openai
+import logging
+from dotenv import load_dotenv
+load_dotenv()
+logging.basicConfig(level=logging.INFO)
 
 class NorwegianDialogueAI:
     """
-    AI-powered Norwegian dialogue practice assistant.
-    Helps users practice conversational Norwegian with context-aware responses.
+    Generates conversational Norwegian replies using OpenAI GPT-3.5-turbo.
     """
-    
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        self.conversation_history = []
-    
-    def generate_response(self, user_message: str, difficulty_level: str = "beginner") -> dict:
+
+    def __init__(self):
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
+            raise EnvironmentError("OPENAI_API_KEY environment variable not set.")
+        openai.api_key = self.api_key
+
+    def generate_response(self, user_message: str, difficulty: str = "easy") -> str:
         """
-        Generate a Norwegian language response for dialogue practice.
-        
+        Sends user message and difficulty to GPT-3.5-turbo.
+        The prompt instructs GPT to act as a Norwegian tutor, reply in Norwegian, then provide a concise English translation.
+
         Args:
-            user_message: The user's input in Norwegian or English
-            difficulty_level: beginner, intermediate, or advanced
-            
+            user_message (str): The user's input/message.
+            difficulty (str): Difficulty level (easy, medium, hard).
+
         Returns:
-            dict with 'response' (Norwegian text), 'translation' (English), and 'explanation'
+            str: Tutor's response.
         """
-        # Store conversation history
-        self.conversation_history.append({"role": "user", "content": user_message})
-        
-        # Simulated response for now - in production, this would use OpenAI API
-        # Example structure for when API is integrated:
-        """
+        prompt = (
+            f"You are a friendly Norwegian language tutor for learners. "
+            f"Reply to the user in Norwegian, then repeat your reply in English on a new line. "
+            f"Keep Norwegian first, English second. Difficulty: {difficulty}. "
+            f"User: {user_message}"
+        )
+        logging.info("Calling GPT-3.5-turbo for Norwegian dialogue")
         try:
-            import openai
-            openai.api_key = self.api_key
-            
-            system_prompt = f'''You are a helpful Norwegian language tutor. 
-            Respond in Norwegian at a {difficulty_level} level. 
-            After your Norwegian response, provide an English translation and brief explanation.
-            Format: NORWEGIAN: [response] | ENGLISH: [translation] | TIP: [helpful tip]'''
-            
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": system_prompt},
-                    *self.conversation_history
-                ]
+                    {"role": "system", "content": "You are a Norwegian language tutor. Respond in Norwegian, then provide English translation."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=256
             )
-            
-            ai_message = response.choices[0].message.content
-            # Parse the response
-            ...
+            reply_text = response.choices[0].message.content.strip()
+            logging.info(f"GPT reply: {reply_text}")
+            return reply_text
         except Exception as e:
-            return self._fallback_response(user_message, difficulty_level)
-        """
-        
-        return self._fallback_response(user_message, difficulty_level)
-    
-    def _fallback_response(self, user_message: str, difficulty_level: str) -> dict:
-        """
-        Fallback responses when AI API is not available.
-        Provides basic conversational responses for common scenarios.
-        """
-        responses = {
-            "beginner": {
-                "hei": {
-                    "norwegian": "Hei! Hvordan har du det?",
-                    "english": "Hi! How are you?",
-                    "explanation": "'Hvordan har du det?' is a common greeting meaning 'How are you?'"
-                },
-                "default": {
-                    "norwegian": "Jeg forstår. Kan du si mer om det?",
-                    "english": "I understand. Can you say more about that?",
-                    "explanation": "This is a simple way to continue the conversation."
-                }
-            },
-            "intermediate": {
-                "default": {
-                    "norwegian": "Det er interessant! Fortell meg mer om dine tanker.",
-                    "english": "That's interesting! Tell me more about your thoughts.",
-                    "explanation": "Use 'tanker' for thoughts and 'fortell' to ask someone to tell you something."
-                }
-            },
-            "advanced": {
-                "default": {
-                    "norwegian": "Jeg setter pris på ditt perspektiv. Kan du utdype det videre?",
-                    "english": "I appreciate your perspective. Can you elaborate further?",
-                    "explanation": "'Å sette pris på' means to appreciate, and 'utdype' means to elaborate."
-                }
-            }
-        }
-        
-        user_lower = user_message.lower()
-        level_responses = responses.get(difficulty_level, responses["beginner"])
-        
-        # Check for specific greetings
-        for key in level_responses:
-            if key in user_lower:
-                response = level_responses[key]
-                self.conversation_history.append({"role": "assistant", "content": response["norwegian"]})
-                return response
-        
-        # Default response
-        response = level_responses["default"]
-        self.conversation_history.append({"role": "assistant", "content": response["norwegian"]})
-        return response
-    
-    def reset_conversation(self):
-        """Clear conversation history to start fresh."""
-        self.conversation_history = []
-    
-    def get_practice_topic(self, category: str) -> dict:
-        """
-        Generate a practice dialogue topic based on category.
-        
-        Args:
-            category: Topic category (e.g., 'greetings', 'shopping', 'healthcare')
-            
-        Returns:
-            dict with scenario description and starter phrases
-        """
-        topics = {
-            "greetings": {
-                "scenario": "Practice introducing yourself and basic greetings",
-                "starters": [
-                    "Hei, jeg heter... (Hi, my name is...)",
-                    "Hvordan har du det? (How are you?)",
-                    "Hyggelig å møte deg! (Nice to meet you!)"
-                ]
-            },
-            "shopping": {
-                "scenario": "Practice shopping at a Norwegian store",
-                "starters": [
-                    "Hvor mye koster dette? (How much does this cost?)",
-                    "Jeg leter etter... (I'm looking for...)",
-                    "Kan jeg få hjelp? (Can I get help?)"
-                ]
-            },
-            "healthcare": {
-                "scenario": "Practice basic healthcare communication",
-                "starters": [
-                    "Jeg trenger en lege (I need a doctor)",
-                    "Jeg føler meg ikke bra (I don't feel well)",
-                    "Hvor er legekontoret? (Where is the doctor's office?)"
-                ]
-            },
-            "daily_life": {
-                "scenario": "Practice everyday conversation",
-                "starters": [
-                    "Hva gjør du i dag? (What are you doing today?)",
-                    "Jeg må gå til... (I need to go to...)",
-                    "Når åpner butikken? (When does the store open?)"
-                ]
-            }
-        }
-        
-        return topics.get(category, topics["greetings"])
+            logging.error(f"GPT API error: {e}")
+            return (
+                "Beklager, jeg kan ikke svare akkurat nå.\n"
+                "Sorry, I can't reply right now. (offline fallback)"
+            )
+
+# Example usage for manual testing
+if __name__ == "__main__":
+    ai = NorwegianDialogueAI()
+    print(ai.generate_response("Hei! Hvordan har du det?", difficulty="easy"))
