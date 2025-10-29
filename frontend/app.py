@@ -3,7 +3,7 @@ import requests
 import io
 
 # 🌐 Your deployed backend base URL
-API_BASE = "http://127.0.0.1:8000"
+API_BASE = "https://norwegian-ai-backend.onrender.com"
 
 
 st.set_page_config(page_title="Norwegian Language Learning App", page_icon="🇳🇴", layout="centered")
