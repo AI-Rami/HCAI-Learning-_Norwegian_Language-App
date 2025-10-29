@@ -2,7 +2,7 @@
 FastAPI Backend for Norwegian Language Learning App
 Uses OpenAI Whisper API and GPT-3.5-turbo for AI features.
 """
-from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Body
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -185,6 +185,35 @@ def create_vocabulary(vocabulary: VocabularyCreate, db: Session = Depends(get_db
     db.refresh(db_vocabulary)
     return db_vocabulary
 
+# ---------- Vocabulary Update ----------
+@app.put("/vocabulary/{vocabulary_id}", response_model=VocabularyResponse)
+def update_vocabulary(
+    vocabulary_id: int,
+    updated_data: dict = Body(...),
+    db: Session = Depends(get_db)
+):
+    vocab = db.query(Vocabulary).filter(Vocabulary.id == vocabulary_id).first()
+    if not vocab:
+        raise HTTPException(status_code=404, detail="Vocabulary not found")
+
+    for key, value in updated_data.items():
+        if hasattr(vocab, key) and value is not None:
+            setattr(vocab, key, value)
+
+    db.commit()
+    db.refresh(vocab)
+    return vocab
+
+# ---------- Vocabulary Delete ----------
+@app.delete("/vocabulary/{vocabulary_id}")
+def delete_vocabulary(vocabulary_id: int, db: Session = Depends(get_db)):
+    vocab = db.query(Vocabulary).filter(Vocabulary.id == vocabulary_id).first()
+    if not vocab:
+        raise HTTPException(status_code=404, detail="Vocabulary not found")
+    db.delete(vocab)
+    db.commit()
+    return {"message": f"Vocabulary item {vocabulary_id} deleted successfully"}
+
 # ---------- Lessons ----------
 @app.get("/lessons", response_model=List[LessonResponse])
 def get_lessons(
@@ -320,7 +349,6 @@ def practice_dialogue(request: DialogueRequest):
 
 @app.post("/ai/dialogue/reset")
 def reset_dialogue():
-    # For API-based GPT, just return message.
     return {"message": "Conversation history reset (stateless API)."}
 
 @app.get("/ai/dialogue/topic/{category}")
@@ -345,7 +373,7 @@ async def transcribe_speech(audio: UploadFile = File(...)):
 @app.post("/ai/speech/pronunciation", response_model=PronunciationFeedback)
 async def check_pronunciation(
     expected_text: str = Form(...),
-    audio: UploadFile = File(...)
+    audio: UploadFile = File(...),
 ):
     global speech_ai
     try:
@@ -363,13 +391,10 @@ async def check_pronunciation(
             "feedback": feedback,
             "suggestions": suggestions,
             "expected": expected_text,
-            "heard": transcribed_text
+            "heard": transcribed_text,
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Pronunciation check failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Pronunciation check failed: {str(e)}")
 
 @app.get("/ai/speech/tips/{word}")
 def get_pronunciation_tips(word: str):
@@ -387,7 +412,7 @@ def get_categories(db: Session = Depends(get_db)):
     return {
         "categories": sorted(list(all_categories)),
         "vocabulary_categories": sorted([cat[0] for cat in vocab_categories]),
-        "lesson_categories": sorted([cat[0] for cat in lesson_categories])
+        "lesson_categories": sorted([cat[0] for cat in lesson_categories]),
     }
 
 @app.get("/stats")
@@ -400,7 +425,7 @@ def get_stats(db: Session = Depends(get_db)):
         "total_users": total_users,
         "total_vocabulary": total_vocabulary,
         "total_lessons": total_lessons,
-        "total_progress_entries": total_progress_entries
+        "total_progress_entries": total_progress_entries,
     }
 
 if __name__ == "__main__":

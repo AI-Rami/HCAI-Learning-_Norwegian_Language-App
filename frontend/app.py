@@ -2,8 +2,12 @@ import streamlit as st
 import requests
 import io
 
-# 🌐 Your deployed backend base URL
-API_BASE = "https://norwegian-ai-backend.onrender.com"
+#  deployed backend base URL
+#API_BASE = "https://norwegian-ai-backend.onrender.com"
+
+#deplyed locally
+API_BASE = "http://localhost:8000"
+
 
 
 st.set_page_config(page_title="Norwegian Language Learning App", page_icon="🇳🇴", layout="centered")
@@ -42,66 +46,95 @@ if st.button("Add Vocabulary"):
     else:
         st.error(f"Error: {res.text}")
 
-# --- Filter & Search Section ---
+
+# --- Manage & View Vocabulary ---
 st.subheader("Search & Manage Vocabulary")
 
-search_term = st.text_input("🔍 Search word or translation")
-selected_category = st.selectbox(
-    "Filter by category", ["all", "noun", "verb", "adjective", "greeting", "daily_life", "healthcare", "shopping", "other"]
-)
-selected_difficulty = st.slider("Filter by difficulty", 1, 5, 1)
+# Maintain toggle state for show/hide
+if "show_vocab" not in st.session_state:
+    st.session_state.show_vocab = False
 
-params = {}
-if selected_category != "all":
-    params["category"] = selected_category
-if selected_difficulty:
-    params["difficulty_level"] = selected_difficulty
+toggle_label = "📂 Show Vocabulary List" if not st.session_state.show_vocab else "📁 Hide Vocabulary List"
+if st.button(toggle_label):
+    st.session_state.show_vocab = not st.session_state.show_vocab
 
-res = requests.get(f"{API_BASE}/vocabulary", params=params)
-if res.status_code == 200:
-    vocab_list = res.json()
-    if search_term:
-        vocab_list = [
-            v for v in vocab_list
-            if search_term.lower() in v["norwegian_word"].lower() or search_term.lower() in v["english_translation"].lower()
-        ]
+if st.session_state.show_vocab:
+    # --- Filters ---
+    search_term = st.text_input("🔍 Search word or translation")
+    selected_category = st.selectbox(
+        "Filter by category",
+        ["all", "noun", "verb", "adjective", "greeting", "daily_life", "healthcare", "shopping", "other"]
+    )
+    selected_difficulty = st.slider("Filter by difficulty", 1, 5, 1)
 
-    if vocab_list:
-        for v in vocab_list:
-            with st.expander(f"{v['norwegian_word']} → {v['english_translation']}"):
-                st.write(f"**Category:** {v['category']}")
-                st.write(f"**Difficulty:** {v['difficulty_level']}")
-                st.write(f"**Example:** {v.get('example_sentence', '') or '–'}")
+    # --- API Request ---
+    params = {}
+    if selected_category != "all":
+        params["category"] = selected_category
+    if selected_difficulty:
+        params["difficulty_level"] = selected_difficulty
 
-                # Edit and Delete
-                new_translation = st.text_input(f"Edit translation for '{v['norwegian_word']}'", v["english_translation"], key=f"edit_{v['id']}")
-                new_example = st.text_area(f"Edit example for '{v['norwegian_word']}'", v.get("example_sentence", ""), key=f"example_{v['id']}")
+    res = requests.get(f"{API_BASE}/vocabulary", params=params)
+    if res.status_code == 200:
+        vocab_list = res.json()
 
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button(f"💾 Save Changes", key=f"save_{v['id']}"):
-                        update_data = {
-                            "english_translation": new_translation,
-                            "example_sentence": new_example
-                        }
-                        update_res = requests.put(f"{API_BASE}/vocabulary/{v['id']}", json=update_data)
-                        if update_res.status_code == 200:
-                            st.success("✅ Updated successfully!")
-                            st.experimental_rerun()
-                        else:
-                            st.error("❌ Update failed.")
-                with col2:
-                    if st.button(f"🗑️ Delete", key=f"delete_{v['id']}"):
-                        del_res = requests.delete(f"{API_BASE}/vocabulary/{v['id']}")
-                        if del_res.status_code == 200:
-                            st.warning("🗑️ Deleted successfully!")
-                            st.experimental_rerun()
-                        else:
-                            st.error("❌ Delete failed.")
+        # --- Search filter ---
+        if search_term:
+            vocab_list = [
+                v for v in vocab_list
+                if search_term.lower() in v["norwegian_word"].lower()
+                or search_term.lower() in v["english_translation"].lower()
+            ]
+
+        # --- Display results ---
+        if vocab_list:
+            st.markdown(f"**Found {len(vocab_list)} words**")
+            for v in vocab_list:
+                with st.expander(f"{v['norwegian_word']} → {v['english_translation']}"):
+                    st.write(f"**Category:** {v['category']}")
+                    st.write(f"**Difficulty:** {v['difficulty_level']}")
+                    st.write(f"**Example:** {v.get('example_sentence', '') or '–'}")
+
+                    new_translation = st.text_input(
+                        f"Edit translation for '{v['norwegian_word']}'",
+                        v["english_translation"],
+                        key=f"edit_{v['id']}"
+                    )
+                    new_example = st.text_area(
+                        f"Edit example for '{v['norwegian_word']}'",
+                        v.get("example_sentence", ""),
+                        key=f"example_{v['id']}"
+                    )
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button(f"💾 Save Changes", key=f"save_{v['id']}"):
+                            update_data = {
+                                "english_translation": new_translation,
+                                "example_sentence": new_example
+                            }
+                            update_res = requests.put(f"{API_BASE}/vocabulary/{v['id']}", json=update_data)
+                            if update_res.status_code == 200:
+                                st.success("✅ Updated successfully!")
+                                st.rerun()
+                            else:
+                                st.error("❌ Update failed.")
+                    with col2:
+                        if st.button(f"🗑️ Delete", key=f"delete_{v['id']}"):
+                            del_res = requests.delete(f"{API_BASE}/vocabulary/{v['id']}")
+                            if del_res.status_code == 200:
+                                st.warning("🗑️ Deleted successfully!")
+                                st.rerun()
+                            else:
+                                st.error("❌ Delete failed.")
+        else:
+            st.info("No words found with the current filters.")
     else:
-        st.info("No words found with the current filters.")
+        st.error("❌ Could not load vocabulary.")
 else:
-    st.error("❌ Could not load vocabulary.")
+    st.caption("Click the button above to view or hide your saved vocabulary list.")
+
+
 
 
 # -------------------------------
