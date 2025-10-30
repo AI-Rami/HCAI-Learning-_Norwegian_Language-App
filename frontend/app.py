@@ -1,33 +1,27 @@
 import streamlit as st
 import requests
-import io
 import os
 
+# -------------------------------
+# 🌐 API Configuration
+# -------------------------------
+# For deployed backend
+# API_BASE = "https://norwegian-ai-backend.onrender.com"
 
-#  deployed backend base URL
-#API_BASE = "https://norwegian-ai-backend.onrender.com"
-
-#deplyed locally
+# For local backend
 API_BASE = "http://localhost:8000"
 
-
-
-
-
 st.set_page_config(page_title="Norwegian Language Learning App", page_icon="🇳🇴", layout="centered")
-st.title("Norwegian Language Learning App")
-st.markdown("Interact with your AI-powered backend (FastAPI + Streamlit)")
+st.title("🇳🇴 Norwegian Language Learning App")
+st.markdown("Interact with your AI-powered backend (FastAPI + Streamlit).")
 st.sidebar.caption(f"🌐 Connected to: {API_BASE}")
 
-# -------------------------------
-# -------------------------------
-# 📚 Vocabulary Section (Upgraded)
-# -------------------------------
+# ============================================================
+# 📚 VOCABULARY SECTION
+# ============================================================
 st.header("📚 Vocabulary")
-
 st.subheader("Add a New Word")
 
-# Input fields
 word = st.text_input("Enter a Norwegian word:")
 translation = st.text_input("Enter its English translation:")
 category = st.selectbox(
@@ -49,13 +43,11 @@ if st.button("Add Vocabulary"):
     if res.status_code == 201:
         st.success("✅ Word added successfully!")
     else:
-        st.error(f"Error: {res.text}")
+        st.error(f"❌ Error: {res.text}")
 
-
-# --- Manage & View Vocabulary ---
+# --- View & Manage Vocabulary ---
 st.subheader("Search & Manage Vocabulary")
 
-# Maintain toggle state for show/hide
 if "show_vocab" not in st.session_state:
     st.session_state.show_vocab = False
 
@@ -64,7 +56,6 @@ if st.button(toggle_label):
     st.session_state.show_vocab = not st.session_state.show_vocab
 
 if st.session_state.show_vocab:
-    # --- Filters ---
     search_term = st.text_input("🔍 Search word or translation")
     selected_category = st.selectbox(
         "Filter by category",
@@ -72,7 +63,6 @@ if st.session_state.show_vocab:
     )
     selected_difficulty = st.slider("Filter by difficulty", 1, 5, 1)
 
-    # --- API Request ---
     params = {}
     if selected_category != "all":
         params["category"] = selected_category
@@ -82,16 +72,12 @@ if st.session_state.show_vocab:
     res = requests.get(f"{API_BASE}/vocabulary", params=params)
     if res.status_code == 200:
         vocab_list = res.json()
-
-        # --- Search filter ---
         if search_term:
             vocab_list = [
                 v for v in vocab_list
                 if search_term.lower() in v["norwegian_word"].lower()
                 or search_term.lower() in v["english_translation"].lower()
             ]
-
-        # --- Display results ---
         if vocab_list:
             st.markdown(f"**Found {len(vocab_list)} words**")
             for v in vocab_list:
@@ -139,30 +125,54 @@ if st.session_state.show_vocab:
 else:
     st.caption("Click the button above to view or hide your saved vocabulary list.")
 
-
-
-
-# -------------------------------
-# 💬 Dialogue AI Section
-# -------------------------------
+# ============================================================
+# 💬 AI DIALOGUE SECTION (Multi-turn chat)
+# ============================================================
 st.header("💬 AI Dialogue Practice")
-prompt = st.text_input("Write something to the AI (in English or Norwegian):")
+st.subheader("Chat with your AI Tutor")
+
+# --- Initialize chat history ---
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+# --- Display previous messages ---
+for speaker, text in st.session_state.chat_history:
+    st.markdown(f"**{speaker}:** {text}")
+
+# --- Input fields ---
+user_input = st.text_input("Write something to the AI (in English or Norwegian):")
 difficulty = st.selectbox("Select difficulty:", ["beginner", "intermediate", "advanced"])
 
-if st.button("Send to AI"):
-    payload = {"message": prompt, "difficulty_level": difficulty}
-    res = requests.post(f"{API_BASE}/ai/dialogue", json=payload)
-    if res.status_code == 200:
-        reply = res.json()
-        st.write("**🇳🇴 Norwegian:**", reply["norwegian"])
-        st.write("**🇬🇧 English:**", reply["english"])
-        st.caption(reply["explanation"])
-    else:
-        st.error("AI endpoint not responding.")
+# --- Send message ---
+if st.button("Send"):
+    if user_input.strip():
+        payload = {"message": user_input, "difficulty_level": difficulty}
+        res = requests.post(f"{API_BASE}/ai/dialogue", json=payload)
 
-# -------------------------------
-# 🎙️ Speech Section
-# -------------------------------
+        if res.status_code == 200:
+            reply = res.json()
+            norwegian = reply["norwegian"]
+            english = reply["english"]
+
+            # Add both sides to session history
+            st.session_state.chat_history.append(("🧑 You", user_input))
+            st.session_state.chat_history.append(("🤖 AI", f"{norwegian}\n*{english}*"))
+            st.rerun()
+        else:
+            st.error("❌ AI endpoint not responding.")
+    else:
+        st.warning("Please type something first.")
+
+# --- Reset chat ---
+if st.button("🔄 Reset Chat"):
+    requests.post(f"{API_BASE}/ai/dialogue/reset")
+    st.session_state.chat_history = []
+    st.success("Chat cleared.")
+    st.rerun()
+
+# ============================================================
+# 🎙️ SPEECH SECTION
+# ============================================================
 st.header("🎙️ Speech Practice")
 
 uploaded_file = st.file_uploader("Upload your Norwegian speech (WAV or MP3)", type=["wav", "mp3"])
@@ -197,9 +207,9 @@ with col2:
         else:
             st.warning("Upload audio and enter the expected text first.")
 
-# -------------------------------
-# 📊 Progress Overview
-# -------------------------------
+# ============================================================
+# 📊 PROGRESS OVERVIEW
+# ============================================================
 st.header("📊 Progress Overview")
 if st.button("Get Stats"):
     res = requests.get(f"{API_BASE}/stats")
