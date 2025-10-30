@@ -1,12 +1,17 @@
 import streamlit as st
 import requests
 import io
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 #  deployed backend base URL
 #API_BASE = "https://norwegian-ai-backend.onrender.com"
 
 #deplyed locally
-API_BASE = "http://localhost:8000"
+#API_BASE = "http://localhost:8000"
+API_BASE = os.getenv("API_BASE", "http://localhost:8000")
+
 
 
 
