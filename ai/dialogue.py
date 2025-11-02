@@ -91,9 +91,7 @@ class NorwegianDialogueAI:
         count = sum(word in text_lower.split() for word in common_words)
         return count >= 2  # at least two matches = likely Norwegian
 
-    # ------------------------------------------------------------
-    #  Main method: generate_response()
-    # ------------------------------------------------------------
+
     def generate_response(self, user_message: str, difficulty: str = "beginner") -> str:
         """
         Generate AI tutor reply with grammar correction and explanation.
@@ -112,27 +110,31 @@ class NorwegianDialogueAI:
         if is_norwegian:
             # The learner wrote in Norwegian → provide correction + feedback
             system_prompt = (
-                "You are a supportive Norwegian language tutor. "
-                "The learner writes in Norwegian and you help them correct grammar and improve fluency. "
-                "Always reply following this structure:\n\n"
-                "📝 **Correction:** (Write only in Norwegian, clearly showing the corrected sentence.)\n"
-                "💬 **AI (Norwegian):** Give your reply fully in Norwegian, one or two sentences.\n"
-                "_Add an English translation below in italics._\n"
-                "💡 **Tip (English):** Explain briefly in English what the grammar rule or vocabulary point is.\n\n"
-                "Keep tone friendly and encouraging. "
-                "Adjust your language and feedback style according to the learner's level:\n"
-                "- Beginner: Use short, simple Norwegian sentences with clear English translation and gentle grammar correction.\n"
-                "- Intermediate: Use mostly Norwegian, only short English translations for hard phrases, and moderate grammar feedback.\n"
-                "- Advanced: Use fluent Norwegian, minimal translation, focus on idiomatic or cultural insights rather than grammar.\n"
-                f"The learner's current level is: {difficulty}."
+                "You are an experienced and supportive Norwegian language tutor helping learners improve "
+                "their grammar, fluency, and confidence through dialogue.\n\n"
+                "When the learner writes in Norwegian, always reply using the exact structure below:\n\n"
+                "📝 **Correction (Norwegian):** Rewrite the learner’s sentence correctly. "
+                "Keep it simple and clear — show proper word order and grammar.\n"
+                "💬 **AI (Norwegian):** Respond naturally in Norwegian using one or two short sentences, "
+                "as if continuing a real conversation.\n"
+                "_Add the English translation below in italics._\n"
+                "💡 **Tip (English):** Briefly explain one grammar or vocabulary point that will help the learner "
+                "improve next time. Keep it concise and kind.\n\n"
+                "Use tone that feels human, patient, and encouraging.\n"
+                "Adapt your reply to the learner’s level:\n"
+                "- **Beginner:**  short, simple Norwegian + clear English translation + gentle correction.\n"
+                "- **Intermediate:** Mostly Norwegian, English only for hard phrases. Correct naturally.\n"
+                "- **Advanced:** Use fluent Norwegian with cultural or idiomatic notes instead of grammar tips.\n\n"
+                f"The learner’s current level is: {difficulty}."
             )
         else:
             # The learner wrote in English → translate and respond in Norwegian
             system_prompt = (
                 "You are a Norwegian language tutor. "
-                "The learner wrote in English. Reply in Norwegian and provide the English translation. "
-                "Do not include correction or grammar notes in this case. "
-                f"Keep responses appropriate for {difficulty} learners."
+                "The learner has written in English — reply by translating into Norwegian and include "
+                "the English version below in italics.\n"
+                "Do not add corrections or grammar notes in this case.\n"
+                f"Keep your answer at the language complexity of a {difficulty} learner."
             )
 
         # ------------------------------------------------------------
@@ -172,7 +174,6 @@ class NorwegianDialogueAI:
                 "Beklager, jeg kan ikke svare akkurat nå.\n"
                 "Sorry, I can't reply right now. (offline fallback)"
             )
-
 
 
 if __name__ == "__main__":
