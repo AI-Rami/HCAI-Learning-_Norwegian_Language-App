@@ -1,104 +1,98 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, Text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
-from datetime import datetime
-from sqlalchemy import Float
-# Database setup
+"""
+database.py
+------------
+SQLite database setup for the Norwegian Learning App.
+
+ Purpose:
+This file defines the database connection and structure used by the FastAPI backend.
+It now focuses only on the *Vocabulary* feature
+
+Structure:
+  1. Imports and configuration
+  2. Database engine + session setup
+  3. ORM model: Vocabulary
+  4. Initialization and session dependency for FastAPI
+"""
+
+# ============================================================
+#  IMPORTS
+# ------------------------------------------------------------
+# - os: to handle file paths
+# - sqlalchemy: ORM for working with database tables
+# - datetime: for automatic timestamps
+# ============================================================
+
 import os
+from datetime import datetime
+from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy.orm import sessionmaker, declarative_base
+
+
+# ============================================================
+#  DATABASE CONFIGURATION
+# ------------------------------------------------------------
+# SQLite is used here — a lightweight local database stored in a file.
+# ============================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'norwegian_app.db')}"
+DB_PATH = os.path.join(BASE_DIR, "norwegian_app.db")
 
+# Full path connection string for SQLite
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# Engine connects to the database file
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False}  # Required for SQLite + multithreading
+)
+
+# Session factory — creates isolated database sessions per request
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Base class for all ORM models
 Base = declarative_base()
 
 
-# Database Models
-class User(Base):
-    __tablename__ = "users"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    progress = relationship("UserProgress", back_populates="user")
-
+# ============================================================
+#  VOCABULARY TABLE
+# ------------------------------------------------------------
+# Stores all Norwegian words, their translations, categories,
+# and example sentences for the learning app.
+# ============================================================
 
 class Vocabulary(Base):
     __tablename__ = "vocabulary"
-    
+
     id = Column(Integer, primary_key=True, index=True)
-    norwegian_word = Column(String, index=True)
-    english_translation = Column(String)
-    category = Column(String)
-    difficulty_level = Column(Integer)
-    pronunciation_guide = Column(String)
-    example_sentence = Column(Text)
-
-# ============================================================
-#  TASK TABLE
-# ------------------------------------------------------------
-# Stores teacher–student tasks for Human–Human collaboration.
-# Each task links a teacher, a student, a target sentence,
-# and later the student's recording accuracy + feedback.
-# ============================================================
-
-from sqlalchemy import Float  # add this import at the top with others
-
-class Task(Base):
-    __tablename__ = "tasks"
-    id = Column(Integer, primary_key=True, index=True)
-    teacher = Column(String, nullable=False)
-    student = Column(String, nullable=False)
-    sentence = Column(String, nullable=False)
-    accuracy = Column(Float, nullable=True)
-    heard = Column(String, nullable=True)
-    feedback = Column(String, nullable=True)
-    status = Column(String, default="pending")
+    norwegian_word = Column(String, nullable=False)
+    english_translation = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    difficulty_level = Column(Integer, nullable=False)
+    pronunciation_guide = Column(String, nullable=True)
+    example_sentence = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     def __repr__(self):
-        return f"<Task(student='{self.student}', sentence='{self.sentence}', status='{self.status}')>"
-
-class Lesson(Base):
-    __tablename__ = "lessons"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String)
-    description = Column(Text)
-    difficulty_level = Column(Integer)
-    content = Column(Text)
-    category = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
+        return f"<Vocabulary(word='{self.norwegian_word}', translation='{self.english_translation}')>"
 
 
-class UserProgress(Base):
-    __tablename__ = "user_progress"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    lesson_id = Column(Integer, ForeignKey("lessons.id"))
-    vocabulary_id = Column(Integer, ForeignKey("vocabulary.id"), nullable=True)
-    completed = Column(Integer, default=0)  # 0 = not started, 1 = in progress, 2 = completed
-    score = Column(Float, default=0.0)
-    last_accessed = Column(DateTime, default=datetime.utcnow)
-    
-    user = relationship("User", back_populates="progress")
+# ============================================================
+#  DATABASE INITIALIZATION & SESSION HANDLER
+# ------------------------------------------------------------
+# init_db(): creates tables if missing.
+# get_db(): used by FastAPI endpoints to open/close DB sessions safely.
+# ============================================================
 
-
-# Database initialization
 def init_db():
+    """Create the database tables if they don’t exist."""
     Base.metadata.create_all(bind=engine)
+    print(f"✅ Database initialized at: {DB_PATH}")
 
 
-# Dependency to get database session
 def get_db():
+    """Dependency that yields a database session for FastAPI endpoints."""
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-
-
