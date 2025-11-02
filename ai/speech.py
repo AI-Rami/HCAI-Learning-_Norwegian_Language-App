@@ -140,25 +140,35 @@ class WhisperSpeechToText:
         if language.lower() in ["norwegian", "norsk"]:
             language = "no"
 
+        #  Ensure 16-bit 16 kHz WAV for stable Whisper results
+        try:
+            from pydub import AudioSegment
+            audio = AudioSegment.from_file(temp_audio_path)
+            audio = audio.set_frame_rate(16000).set_sample_width(2)
+            audio.export(temp_audio_path, format="wav")
+        except Exception as e:
+            print(f"[Audio re-encode skipped] {e}")
+
         try:
             if self.client is not None:
-                # New OpenAI client
                 with open(temp_audio_path, "rb") as f:
                     transcript = self.client.audio.transcriptions.create(
                         model="whisper-1",
                         file=BufferedReader(f),
                         response_format="text",
                         language=language,
+
+                        prompt="Clear Norwegian sentences about daily life, hobbies, work, and study."
                     )
                 return str(transcript).strip()
             else:
-                # Legacy OpenAI client fallback
                 with open(temp_audio_path, "rb") as audio_file:
                     transcript = openai_legacy.audio.transcriptions.create(
                         model="whisper-1",
                         file=audio_file,
                         response_format="text",
                         language=language,
+                        prompt="Clear Norwegian sentences about daily life, hobbies, work, and study."
                     )
                 return str(transcript).strip()
 
@@ -226,9 +236,9 @@ class WhisperSpeechToText:
                     f"Expected: {expected_text}\nHeard: {transcribed_text}"
                 )
                 resp = self.client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    temperature=0.3,
-                    max_tokens=150,
+                    model="gpt-4o",
+                    temperature=0.5,
+                    max_tokens=300,
                     messages=[
                         {"role": "system", "content": "Be brief and helpful."},
                         {"role": "user", "content": msg},
@@ -240,8 +250,8 @@ class WhisperSpeechToText:
                 # Legacy GPT fallback
                 resp = openai_legacy.ChatCompletion.create(
                     model="gpt-3.5-turbo",
-                    temperature=0.3,
-                    max_tokens=150,
+                    temperature=0.5,
+                    max_tokens=300,
                     messages=[
                         {"role": "system", "content": "Be brief and helpful."},
                         {"role": "user", "content": (
@@ -272,12 +282,7 @@ class WhisperSpeechToText:
             "gpt_feedback": gpt_feedback,
         }
 
-    # ------------------------------------------------------------
-    # Legacy wrapper (for backward compatibility)
-    # ------------------------------------------------------------
-    def check_pronunciation(self, expected_text: str, temp_audio_path: str) -> dict:
-        """Older alias kept for compatibility with some frontends."""
-        return self.analyze_pronunciation(expected_text, temp_audio_path)
+
 
     # ------------------------------------------------------------
     # Word-level highlight generator

@@ -79,7 +79,7 @@ if not st.session_state.seen_intro:
     3. **🎙️ Speech Practice** – Record yourself and get pronunciation feedback.  
 
     ---
-    🧩 **Try this demo:**  
+     **Try this demo:**  
     - Type `Hei, jeg heter Maria!` in the dialogue section  
     - or say it in Speech Practice to test your pronunciation.
 
@@ -339,10 +339,9 @@ if st.button("🔄 Reset Chat"):
 # 1) "Repeat after me" — record mic and compare vs expected sentence.
 # 2) "Upload recording" — upload an audio file and compare vs expected.
 # 3) "Speak freely" — record mic without a target; AI gives general feedback.
-#
+
 # Visuals:
 # - Feedback cards with emoji + color for tone ("praise", "encouraging", etc.).
-# - Progress bars showing your accuracy/fluency score (0–100%).
 # ============================================================
 
 st.header("🎙️ Speech Practice")

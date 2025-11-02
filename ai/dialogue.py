@@ -151,10 +151,10 @@ class NorwegianDialogueAI:
             messages = [{"role": "system", "content": system_prompt}] + self.chat_history
 
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o",
                 messages=messages,
-                temperature=0.6,
-                max_tokens=350,
+                temperature=0.5,
+                max_tokens=400,
             )
 
             reply_text = response.choices[0].message.content.strip()

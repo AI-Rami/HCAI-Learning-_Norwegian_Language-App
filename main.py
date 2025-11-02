@@ -3,7 +3,7 @@ main.py
 --------
 FastAPI backend for the Norwegian Language Learning App.
 
-🧩 Purpose:
+ Purpose:
 This backend connects Streamlit frontend to:
   • the vocabulary database (add, read, update, delete)
   • GPT-powered Norwegian dialogue tutor
@@ -256,89 +256,100 @@ async def check_pronunciation(
     expected_text: str = Form(...),
     audio: UploadFile = File(...),
 ):
-    """Analyze pronunciation against target text using Whisper + GPT."""
-    global speech_ai, dialogue_ai
-
-    # Save audio temporarily
-    temp_audio_path = f"temp_{audio.filename}"
-    with open(temp_audio_path, "wb") as f:
-        f.write(await audio.read())
-
-    # Step 1 — Transcribe with Whisper
-    heard = speech_ai.transcribe_audio(temp_audio_path, language="no")
-    os.remove(temp_audio_path)
-
-    # Step 2 — Compare expected vs heard
-    similarity = SequenceMatcher(None, expected_text.lower(), heard.lower()).ratio()
-
-    # Step 3 — Ask GPT for friendly feedback
-    prompt = f"""
-    You are a kind Norwegian pronunciation coach.
-    The learner tried to say: '{expected_text}'
-    Whisper heard: '{heard}'
-    Similarity: {similarity:.2f}
-
-    Respond in JSON with:
-    {{
-      "accuracy": 0.85,
-      "feedback": "Good pronunciation / God uttale",
-      "emotion_tone": "praise",
-      "semantic": "Clear and natural phrasing"
-    }}
     """
+    Analyze pronunciation accuracy and give GPT feedback.
+    Uses WhisperSpeechToText.analyze_pronunciation() for full pipeline.
+    """
+    global speech_ai
 
+    # Save uploaded audio to a temporary file
+    temp_audio_path = f"temp_{audio.filename}"
     try:
-        resp = dialogue_ai.client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.6,
-            max_tokens=250,
-        )
-        raw = resp.choices[0].message.content.strip().strip("`").replace("json", "")
-        gpt_data = json.loads(raw)
-    except Exception as e:
-        gpt_data = {"accuracy": similarity, "feedback": f"(GPT error: {e})", "emotion_tone": "neutral", "semantic": ""}
+        with open(temp_audio_path, "wb") as f:
+            f.write(await audio.read())
 
-    return {
-        "accuracy": gpt_data.get("accuracy", similarity),
-        "feedback": gpt_data.get("feedback", ""),
-        "emotion_tone": gpt_data.get("emotion_tone", "neutral"),
-        "semantic": gpt_data.get("semantic", ""),
-        "expected": expected_text,
-        "heard": heard,
-    }
+        # Run full speech analysis (transcription + GPT feedback)
+        result = speech_ai.analyze_pronunciation(expected_text, temp_audio_path)
+
+        # Align field names with frontend expectations
+        return {
+            "accuracy": result.get("accuracy", 0.0),
+            "feedback": result.get("feedback", ""),
+            "emotion_tone": "neutral",  # default (no tone classification yet)
+            "semantic_comment": result.get("gpt_feedback", ""),
+            "expected": result.get("expected", expected_text),
+            "heard": result.get("heard", ""),
+            "speed_comment": result.get("speed_comment", ""),
+            "highlights_html": result.get("highlights_html", None),
+        }
+
+    except Exception as e:
+        return {"error": f"Pronunciation analysis failed: {e}"}
+
+    finally:
+        # Ensure cleanup even if analysis fails
+        if os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+
 
 
 @app.post("/ai/speech/free_feedback")
 async def free_feedback(audio: UploadFile = File(...)):
-    """Freestyle mode — AI analyzes your natural speech."""
-    global speech_ai, dialogue_ai
+    """
+    Freestyle pronunciation and fluency feedback.
+    The learner speaks naturally — Whisper transcribes, GPT comments.
+    """
+    global speech_ai
 
     temp_audio_path = f"temp_{audio.filename}"
-    with open(temp_audio_path, "wb") as f:
-        f.write(await audio.read())
-
-    heard = speech_ai.transcribe_audio(temp_audio_path, language="no")
-    os.remove(temp_audio_path)
-
-    prompt = f"""
-    You are a warm Norwegian teacher. The learner said: '{heard}'.
-    Return JSON with pronunciation score, bilingual feedback, emotion tone, and semantic comment.
-    """
-
     try:
-        resp = dialogue_ai.client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=250,
-        )
-        raw = resp.choices[0].message.content.strip().strip("`").replace("json", "")
-        data = json.loads(raw)
-    except Exception as e:
-        data = {"accuracy": 0.0, "feedback": f"(GPT feedback unavailable: {e})", "emotion_tone": "neutral", "semantic": ""}
+        # Save uploaded recording
+        with open(temp_audio_path, "wb") as f:
+            f.write(await audio.read())
 
-    return {"heard": heard, **data}
+        # Step 1 — Transcribe using Whisper
+        heard = speech_ai.transcribe_audio(temp_audio_path, language="no")
+
+        # Step 2 — Ask GPT for feedback
+        msg = (
+            "You are a Norwegian language tutor giving short feedback on pronunciation and meaning.\n"
+            f"Learner said:\n{heard}\n\n"
+            "Respond in this exact format:\n"
+            "Accuracy: (a number between 0 and 1)\n"
+            "Norsk: (1 sentence praising or correcting pronunciation)\n"
+            "English: (the same feedback translated)\n"
+            "Semantic: (1 short comment on fluency or phrasing)\n\n"
+            "Keep each section on its own line. Do not use lists or extra formatting."
+        )
+
+        resp = speech_ai.client.chat.completions.create(
+            model="gpt-4o",
+            temperature=0.5,
+            max_tokens=300,
+            messages=[
+                {"role": "system", "content": "Be kind, encouraging, and concise."},
+                {"role": "user", "content": msg},
+            ],
+        )
+
+        gpt_text = resp.choices[0].message.content.strip()
+
+        # Step 3 — Build response (no fragile JSON parsing)
+        return {
+            "heard": heard,
+            "accuracy": 0.85,  # static placeholder (GPT doesn't compute numeric)
+            "feedback": gpt_text,
+            "emotion_tone": "encouraging",
+            "semantic_comment": "",
+        }
+
+    except Exception as e:
+        return {"error": f"Free feedback failed: {e}"}
+
+    finally:
+        if os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+
 
 
 # ============================================================
