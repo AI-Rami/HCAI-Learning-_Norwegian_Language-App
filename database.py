@@ -2,12 +2,13 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
-
+from sqlalchemy import Float
 # Database setup
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'norwegian_learning.db')}"
+DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'norwegian_app.db')}"
+
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -36,6 +37,30 @@ class Vocabulary(Base):
     pronunciation_guide = Column(String)
     example_sentence = Column(Text)
 
+# ============================================================
+#  TASK TABLE
+# ------------------------------------------------------------
+# Stores teacher–student tasks for Human–Human collaboration.
+# Each task links a teacher, a student, a target sentence,
+# and later the student's recording accuracy + feedback.
+# ============================================================
+
+from sqlalchemy import Float  # add this import at the top with others
+
+class Task(Base):
+    __tablename__ = "tasks"
+    id = Column(Integer, primary_key=True, index=True)
+    teacher = Column(String, nullable=False)
+    student = Column(String, nullable=False)
+    sentence = Column(String, nullable=False)
+    accuracy = Column(Float, nullable=True)
+    heard = Column(String, nullable=True)
+    feedback = Column(String, nullable=True)
+    status = Column(String, default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Task(student='{self.student}', sentence='{self.sentence}', status='{self.status}')>"
 
 class Lesson(Base):
     __tablename__ = "lessons"
@@ -75,3 +100,5 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
