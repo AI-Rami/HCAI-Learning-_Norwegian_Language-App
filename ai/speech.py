@@ -225,44 +225,47 @@ class WhisperSpeechToText:
         seconds = _estimate_speech_speed_seconds(temp_audio_path)
         speed_comment = self._speed_comment(expected_text, seconds)
 
-        # Step 3 — GPT feedback
+        # Step 3 —  GPT feedback
         gpt_feedback = None
         try:
-            accuracy_percent = round(accuracy * 100, 1)
+            if self.client is not None:
+                msg = (
+                    "You are a concise Norwegian pronunciation coach. "
+                    "Compare the two lines and give 2–3 short tips. "
+                    "Use Norwegian first, then an English translation.\n\n"
+                    f"Expected: {expected_text}\nHeard: {transcribed_text}"
+                )
+                resp = self.client.chat.completions.create(
+                    model="gpt-4o",
+                    temperature=0.5,
+                    max_tokens=300,
+                    messages=[
+                        {"role": "system", "content": "Be brief and helpful."},
+                        {"role": "user", "content": msg},
+                    ],
+                )
+                gpt_feedback = resp.choices[0].message.content.strip()
 
-            msg = (
-                "You are a professional Norwegian language tutor and pronunciation coach. "
-                "The student was asked to repeat a specific Norwegian sentence aloud.\n\n"
-                f"🎯 **Target sentence (expected):** {expected_text}\n"
-                f"🎙️ **Heard (transcribed by Whisper):** {transcribed_text}\n"
-                f"📊 **Similarity score:** {accuracy_percent}% (calculated automatically)\n\n"
-                "Evaluate the student's attempt carefully across pronunciation, grammar, and meaning.\n"
-                "Then provide feedback in the following structure:\n\n"
-                "1️⃣ **Norwegian Feedback:** 2–3 short sentences in Norwegian. Encourage, correct, and model the right form naturally.\n"
-                "2️⃣ **English Translation:** Translate your Norwegian feedback into natural English with the same supportive tone.\n"
-                "3️⃣ **Detailed Evaluation (English):** Explain briefly:\n"
-                "   • Pronunciation — clarity, vowel/consonant accuracy, rhythm, stress, intonation.\n"
-                "   • Grammar — word order, missing or wrong forms, small errors.\n"
-                "   • Meaning — did the message still make sense?\n"
-                "4️⃣ **Practical Tips:** Up to 3 specific practice ideas (repeat slowly, stress key vowels, imitate rhythm, etc.).\n\n"
-                "Style guidelines:\n"
-                "- Be friendly and concise (max 8–10 sentences total).\n"
-                "- Never restate both full sentences; just reference the key words.\n"
-                "- Treat this as live teacher feedback: positive but precise."
-            )
-
-            resp = self.client.chat.completions.create(
-                model="gpt-4o",
-                temperature=0.5,
-                max_tokens=350,
-                messages=[
-                    {"role": "system", "content": "You are a professional Norwegian tutor. Be supportive but exact."},
-                    {"role": "user", "content": msg},
-                ],
-            )
-            gpt_feedback = resp.choices[0].message.content.strip()
+            elif _HAS_OPENAI_LEGACY:
+                # Legacy GPT fallback
+                resp = openai_legacy.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    temperature=0.5,
+                    max_tokens=300,
+                    messages=[
+                        {"role": "system", "content": "Be brief and helpful."},
+                        {"role": "user", "content": (
+                            "You are a concise Norwegian pronunciation coach. "
+                            "Compare the two lines and give 2–3 short tips. "
+                            "Use Norwegian first, then English.\n\n"
+                            f"Expected: {expected_text}\nHeard: {transcribed_text}"
+                        )},
+                    ],
+                )
+                gpt_feedback = resp["choices"][0]["message"]["content"].strip()
 
         except Exception as e:
+            # Silent skip — if GPT fails, still return Whisper results
             print(f"[GPT feedback skipped] {e}")
 
         # Step 4 — Visual highlight (correct words = green, wrong = red)
@@ -270,16 +273,8 @@ class WhisperSpeechToText:
 
         # Step 5 — Return full feedback structure
         return {
-            "accuracy": round(float(accuracy) * 100, 1),
-
-            "feedback": (
-    "Utmerket uttale – det hørtes naturlig ut!"
-    if accuracy >= 0.9 else
-    "Bra innsats – det meste er riktig, men litt mer tydelighet hjelper."
-    if accuracy >= 0.75 else
-    "Nesten riktig, prøv å uttale tydeligere og gjenta setningen roligere."
-),
-
+            "accuracy": round(float(accuracy), 4),
+            "feedback": "Bra jobbet!" if accuracy >= 0.8 else "Nesten. Prøv igjen med tydeligere uttale.",
             "expected": expected_text,
             "heard": transcribed_text,
             "speed_comment": speed_comment,

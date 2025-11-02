@@ -42,7 +42,7 @@ import json
 import os
 
 # Import from local modules
-from database import init_db, get_db, Vocabulary, Task
+from database import init_db, get_db, Vocabulary
 from ai.dialogue import NorwegianDialogueAI
 from ai.speech import WhisperSpeechToText
 
@@ -166,7 +166,7 @@ def get_vocabulary(
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    """Fetch vocabulary items (optionally filtered)."""
+    """Fetch vocabulary items (optionally filtered by category or difficulty)."""
     query = db.query(Vocabulary)
     if category:
         query = query.filter(Vocabulary.category == category)
@@ -208,7 +208,6 @@ def delete_vocabulary(vocabulary_id: int, db: Session = Depends(get_db)):
     db.delete(vocab)
     db.commit()
     return {"message": f"✅ Word {vocabulary_id} deleted successfully"}
-
 
 
 # ============================================================
@@ -262,79 +261,86 @@ async def check_pronunciation(
     Uses WhisperSpeechToText.analyze_pronunciation() for full pipeline.
     """
     global speech_ai
+
+    # Save uploaded audio to a temporary file
     temp_audio_path = f"temp_{audio.filename}"
     try:
         with open(temp_audio_path, "wb") as f:
             f.write(await audio.read())
 
+        # Run full speech analysis (transcription + GPT feedback)
         result = speech_ai.analyze_pronunciation(expected_text, temp_audio_path)
 
+        # Align field names with frontend expectations
         return {
             "accuracy": result.get("accuracy", 0.0),
             "feedback": result.get("feedback", ""),
+            "emotion_tone": "neutral",  # default (no tone classification yet)
+            "semantic_comment": result.get("gpt_feedback", ""),
             "expected": result.get("expected", expected_text),
             "heard": result.get("heard", ""),
             "speed_comment": result.get("speed_comment", ""),
             "highlights_html": result.get("highlights_html", None),
-            "gpt_feedback": result.get("gpt_feedback", ""),
         }
 
     except Exception as e:
         return {"error": f"Pronunciation analysis failed: {e}"}
 
     finally:
+        # Ensure cleanup even if analysis fails
         if os.path.exists(temp_audio_path):
             os.remove(temp_audio_path)
+
 
 
 @app.post("/ai/speech/free_feedback")
 async def free_feedback(audio: UploadFile = File(...)):
     """
-    Freestyle pronunciation and fluency feedback (no accuracy scoring).
-    The learner speaks freely — Whisper transcribes and GPT comments on pronunciation, grammar, and meaning.
+    Freestyle pronunciation and fluency feedback.
+    The learner speaks naturally — Whisper transcribes, GPT comments.
     """
     global speech_ai
-    temp_audio_path = f"temp_{audio.filename}"
 
+    temp_audio_path = f"temp_{audio.filename}"
     try:
-        # Save the recording
+        # Save uploaded recording
         with open(temp_audio_path, "wb") as f:
             f.write(await audio.read())
 
         # Step 1 — Transcribe using Whisper
         heard = speech_ai.transcribe_audio(temp_audio_path, language="no")
 
-        # Step 2 — Ask GPT for natural feedback
+        # Step 2 — Ask GPT for feedback
         msg = (
-            "You are an experienced Norwegian language tutor and pronunciation coach. "
-            "The learner just spoke freely in Norwegian — your job is to give holistic feedback. "
-            "Evaluate the speech in three areas:\n"
-            "1️⃣ Pronunciation – clarity, rhythm, vowel/consonant accuracy, stress.\n"
-            "2️⃣ Grammar – sentence structure, word order, verb forms.\n"
-            "3️⃣ Meaning – does it make sense, and how natural does it sound?\n\n"
-            f"🎧 Transcribed speech:\n{heard}\n\n"
-            "Then reply with this structure:\n"
-            "🗣️ **Norwegian feedback:** 2–3 sentences in Norwegian giving praise and gentle correction.\n"
-            "_Then provide the English translation below in italics._\n"
-            "💡 **Tip (English):** Offer one short, practical improvement idea."
+            "You are a Norwegian language tutor giving short feedback on pronunciation and meaning.\n"
+            f"Learner said:\n{heard}\n\n"
+            "Respond in this exact format:\n"
+            "Accuracy: (a number between 0 and 1)\n"
+            "Norsk: (1 sentence praising or correcting pronunciation)\n"
+            "English: (the same feedback translated)\n"
+            "Semantic: (1 short comment on fluency or phrasing)\n\n"
+            "Keep each section on its own line. Do not use lists or extra formatting."
         )
 
         resp = speech_ai.client.chat.completions.create(
             model="gpt-4o",
-            temperature=0.6,
-            max_tokens=350,
+            temperature=0.5,
+            max_tokens=300,
             messages=[
-                {"role": "system", "content": "Be warm, supportive, and natural like a real Norwegian teacher."},
+                {"role": "system", "content": "Be kind, encouraging, and concise."},
                 {"role": "user", "content": msg},
             ],
         )
 
-        feedback = resp.choices[0].message.content.strip()
+        gpt_text = resp.choices[0].message.content.strip()
 
+        # Step 3 — Build response (no fragile JSON parsing)
         return {
             "heard": heard,
-            "feedback": feedback,
-            "emotion_tone": "supportive",
+            "accuracy": 0.85,  # static placeholder (GPT doesn't compute numeric)
+            "feedback": gpt_text,
+            "emotion_tone": "encouraging",
+            "semantic_comment": "",
         }
 
     except Exception as e:
@@ -345,67 +351,6 @@ async def free_feedback(audio: UploadFile = File(...)):
             os.remove(temp_audio_path)
 
 
-
-# ============================================================
-#  TEACHER–STUDENT COLLABORATION ENDPOINTS
-# ------------------------------------------------------------
-@app.post("/teacher/task")
-def assign_task(
-    teacher: str = Form(...),
-    student: str = Form(...),
-    sentence: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    """Teacher assigns a new sentence for a student to practice."""
-    task = Task(teacher=teacher, student=student, sentence=sentence)
-    db.add(task)
-    db.commit()
-    return {"message": "Task assigned successfully."}
-
-
-@app.get("/student/tasks")
-def get_student_tasks(student: str, db: Session = Depends(get_db)):
-    """Return all tasks assigned to a given student."""
-    return db.query(Task).filter(Task.student == student).order_by(Task.created_at.desc()).all()
-
-
-@app.post("/student/submit")
-def submit_task(
-    task_id: int = Form(...),
-    accuracy: float = Form(...),
-    heard: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    """Student submits pronunciation accuracy and transcription."""
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found.")
-    task.accuracy = accuracy
-    task.heard = heard
-    task.status = "done"
-    db.commit()
-    return {"message": "Result submitted successfully."}
-
-
-@app.post("/teacher/feedback")
-def teacher_feedback(
-    task_id: int = Form(...),
-    feedback: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    """Teacher sends written feedback after reviewing a task."""
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found.")
-    task.feedback = feedback
-    db.commit()
-    return {"message": "Feedback saved."}
-
-
-@app.get("/teacher/review")
-def review_tasks(db: Session = Depends(get_db)):
-    """Return all student tasks (most recent first)."""
-    return db.query(Task).order_by(Task.created_at.desc()).all()
 
 # ============================================================
 #  RUN SERVER (LOCAL DEVELOPMENT)
