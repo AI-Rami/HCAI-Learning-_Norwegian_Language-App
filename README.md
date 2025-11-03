@@ -1,108 +1,161 @@
-Norwegian Language Learning App
---------------------------------
+===========================================================
+Norwegian Language Learning App (Final HCAI Exam Project)
+===========================================================
 
-A Human-Centered AI web application built to help users practice Norwegian
-vocabulary, conversation, and pronunciation — powered by FastAPI, Streamlit,
-and OpenAI models.
-
-
-CORE FEATURES
--------------
-• Vocabulary Management
-  Add, edit, delete, and browse Norwegian words with translations and examples.
-
-• AI Dialogue Practice
-  Chat naturally in Norwegian with an AI tutor that adapts to your difficulty level
-  (beginner, intermediate, advanced).
-
-• Pronunciation Feedback
-  Record or upload your speech and get instant pronunciation feedback using
-  Whisper + GPT.
+Author: Rami Badleh  
+Course: Human-Centered Artificial Intelligence (KIUA1008)  
+Institution: Inland Norway University of Applied Sciences  
+Year: 2025  
+===========================================================
 
 
-PROJECT STRUCTURE
------------------
-HCAI-Learning-Norwegian-Language-App/
-├── main.py              → FastAPI backend (vocabulary + AI)
-├── database.py          → SQLite database (vocabulary table)
-├── ai/
-│   ├── __init__.py      → AI package marker
-│   ├── dialogue.py      → GPT-based dialogue tutor
-│   └── speech.py        → Whisper speech-to-text & feedback
-├── seed_data.py         → Seeds vocabulary data
-├── app.py               → Streamlit frontend
-├── requirements.txt     → Dependencies
-└── README.txt           → This file
-
-
-INSTALLATION
-------------
-1. Make sure you have Python 3.13 or higher.
-2. Clone or download the project.
-3. Open a terminal inside the project folder and run:
-
-   python -m venv venv
-   venv\Scripts\activate        (on macOS/Linux: source venv/bin/activate)
-   pip install -r requirements.txt
-
-
-INITIALIZE DATABASE
+1. Project Overview
 -------------------
-python seed_data.py
+This project is an AI-powered language learning system designed
+to help learners practice Norwegian in an interactive way.
+
+The app provides two main interfaces:
+
+• Student interface:
+  - Learn new Norwegian words (Vocabulary)
+  - Chat with an AI language tutor (GPT)
+  - Record and analyze speech pronunciation (Whisper)
+  - Receive tasks from teachers and submit attempts
+
+• Teacher interface:
+  - Assign pronunciation tasks
+  - Review student submissions
+  - Send written feedback directly from the dashboard
 
 
-RUN THE BACKEND (FASTAPI)
--------------------------
-uvicorn main:app --reload
-API available at: http://localhost:8000
+2. System Components
+--------------------
+The project has two main parts:
+
+1) Backend (FastAPI) — main.py
+   - Handles API requests and connects everything together.
+   - Uses GPT (for dialogue), Whisper (for speech), and SQLite (for storage).
+
+2) Frontend (Streamlit) — app.py
+   - Web interface for both teacher and student users.
+   - Connects to FastAPI backend via REST API calls.
+
+Supporting files:
+   - database.py  → defines all database tables.
+   - dialogue.py  → controls AI dialogue and correction logic.
+   - speech.py    → manages audio transcription and feedback.
+   - seed_data.py → fills the database with initial sample words.
 
 
-RUN THE FRONTEND (STREAMLIT)
+3. Features Summary
+-------------------
+STUDENT FUNCTIONS:
+- Add, view, and categorize vocabulary.
+- Chat with GPT to practice Norwegian (with correction + translation).
+- Record speech and receive pronunciation accuracy and feedback.
+- Review assigned pronunciation tasks and submit best attempt.
+
+TEACHER FUNCTIONS:
+- Assign new speaking tasks.
+- Review student performance and accuracy.
+- Provide personalized written feedback.
+
+
+4. Technology Stack
+-------------------
+Languages:
+  - Python 3.10+
+
+Frameworks and Libraries:
+  - FastAPI (backend API)
+  - Streamlit (frontend UI)
+  - SQLAlchemy (database ORM)
+  - OpenAI (GPT and Whisper)
+  - Pydantic (data validation)
+  - Requests (API communication)
+  - pydub (optional audio processing)
+  - streamlit-mic-recorder (optional microphone recording)
+
+Database:
+  - SQLite (local file-based database)
+
+
+5. Installation & Setup
+-----------------------
+Follow these steps to set up and run the app locally.
+
+Step 1: Create a virtual environment
+------------------------------------
+  python -m venv .venv
+  source .venv/bin/activate   (Mac/Linux)
+  .venv\Scripts\activate      (Windows)
+
+Step 2: Install dependencies
 ----------------------------
-streamlit run app.py
+  pip install -r requirements.txt
+
+Step 3: Add your OpenAI API key
+-------------------------------
+Create a file named `.env` in the project folder and add:
+  OPENAI_API_KEY=your_api_key_here
+
+Step 4: Initialize the database
+-------------------------------
+  python seed_data.py
+
+Step 5: Run the backend server
+------------------------------
+  uvicorn main:app --reload
+
+Step 6: Run the frontend (Streamlit)
+------------------------------------
+  streamlit run app.py
 
 
-API OVERVIEW
-------------
-/vocabulary                → GET  - list all words (filter optional)
-/vocabulary                → POST - add new word
-/vocabulary/{id}           → PUT  - update word
-/vocabulary/{id}           → DELETE - delete word
-/ai/dialogue               → POST - chat with AI tutor
-/ai/dialogue/reset         → POST - clear chat
-/ai/speech/pronunciation   → POST - pronunciation check
-/ai/speech/free_feedback   → POST - free speaking feedback
+6. Folder Structure
+-------------------
+/project-folder
+│
+├── app.py                → Streamlit interface (teacher/student)
+├── main.py               → FastAPI backend
+├── database.py           → Database models (User, Vocabulary, Task)
+├── dialogue.py           → GPT-based Norwegian tutor logic
+├── speech.py             → Whisper + GPT pronunciation feedback
+├── seed_data.py          → Adds initial vocabulary examples
+├── requirements.txt      → List of dependencies
+├── .env                  → (Your API key)
+└── norwegian_learning.db → SQLite database file (created automatically)
 
 
-DATABASE STRUCTURE
-------------------
-Table: vocabulary
-Fields:
-  id
-  norwegian_word
-  english_translation
-  category
-  difficulty_level
-  pronunciation_guide
-  example_sentence
-  created_at
+7. Example Usage
+----------------
+After running both backend and frontend:
+
+- Open Streamlit in your browser.
+- Choose your role:
+    👨‍🎓 Student → Learn, chat, and practice.
+    👩‍🏫 Teacher → Assign and review tasks.
+- Students can speak or upload audio.
+- Teachers can monitor performance in real-time.
 
 
-CONFIGURATION
--------------
-Create a file called .env in the project folder and add:
-OPENAI_API_KEY=your_api_key_here
+8. Notes & Limitations
+----------------------
+- This version uses OpenAI’s GPT and Whisper models online.
+  (Requires internet and valid API key.)
+- Speech analysis may vary based on microphone quality.
+- Database is local — all data is saved to norwegian_learning.db.
 
 
-TECH STACK
+9. Credits
 -----------
-• FastAPI  — backend API
-• Streamlit — web UI
-• SQLite + SQLAlchemy — database
-• OpenAI GPT + Whisper — AI tutor and speech analysis
+Developed by: Rami Badleh  
+Under supervision of: Inland Norway University of Applied Sciences  
+For the course: Human-Centered Artificial Intelligence (KIUA1008)
+
+Technologies: OpenAI GPT-4o, Whisper, FastAPI, Streamlit, SQLite
 
 
-ACKNOWLEDGMENT
---------------
-Built for the Human-Centered AI Exam Project (KIUA1008)
-Inland Norway University of Applied Sciences
+===========================================================
+End of README
+===========================================================
