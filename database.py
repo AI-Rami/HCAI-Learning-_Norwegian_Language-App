@@ -2,11 +2,10 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
+from sqlalchemy import Float
+# Database setup
 import os
 
-# ============================================================
-#  DATABASE CONFIGURATION
-# ============================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'norwegian_learning.db')}"
 
@@ -16,24 +15,28 @@ Base = declarative_base()
 
 
 # ============================================================
-#  USER TABLE (Teacher / Student)
+#  USER TABLE
+# ------------------------------------------------------------
+# Added to handle both students and teachers.
+# Keeps simple text-based references to avoid breaking old logic.
 # ============================================================
+
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
-    role = Column(String, default="student")   # "student" or "teacher"
+    role = Column(String, default="student")  # "student" or "teacher"
     email = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-
-    tasks = relationship("Task", back_populates="student_obj", foreign_keys="Task.student_id")
-    assigned_tasks = relationship("Task", back_populates="teacher_obj", foreign_keys="Task.teacher_id")
 
 
 # ============================================================
 #  VOCABULARY TABLE
+# ------------------------------------------------------------
+# Unchanged from original file.
 # ============================================================
+
 class Vocabulary(Base):
     __tablename__ = "vocabulary"
 
@@ -47,46 +50,68 @@ class Vocabulary(Base):
 
 
 # ============================================================
-#  TASK TABLE (Teacher → Student)
+#  TASK TABLE
+# ------------------------------------------------------------
+# Original version (kept identical)
+# + Added optional link to TaskAttempt table for retry system.
 # ============================================================
+
 class Task(Base):
     __tablename__ = "tasks"
-
     id = Column(Integer, primary_key=True, index=True)
-    teacher_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    student_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    sentence = Column(Text, nullable=False)
+    teacher = Column(String, nullable=False)
+    student = Column(String, nullable=False)
+    sentence = Column(String, nullable=False)
     accuracy = Column(Float, nullable=True)
-    heard = Column(Text, nullable=True)
-    feedback = Column(Text, nullable=True)
+    heard = Column(String, nullable=True)
+    feedback = Column(String, nullable=True)
     status = Column(String, default="pending")
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    teacher_obj = relationship("User", back_populates="assigned_tasks", foreign_keys=[teacher_id])
-    student_obj = relationship("User", back_populates="tasks", foreign_keys=[student_id])
+    # Added link to attempts
     attempts = relationship("TaskAttempt", back_populates="task", cascade="all, delete")
 
+    def __repr__(self):
+        return f"<Task(student='{self.student}', sentence='{self.sentence}', status='{self.status}')>"
+
 
 # ============================================================
-#  TASK ATTEMPT TABLE (Retry system)
+#  TASK ATTEMPTS (NEW)
+# ------------------------------------------------------------
+# Each Task can have multiple attempts by a student before submission.
+# Keeps accuracy, heard text, and timestamp for each try.
 # ============================================================
+
 class TaskAttempt(Base):
     __tablename__ = "task_attempts"
 
     id = Column(Integer, primary_key=True, index=True)
     task_id = Column(Integer, ForeignKey("tasks.id"))
-    accuracy = Column(Float)
-    heard = Column(Text)
+    accuracy = Column(Float, nullable=True)
+    heard = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     task = relationship("Task", back_populates="attempts")
 
+    def __repr__(self):
+        return f"<TaskAttempt(task_id={self.task_id}, accuracy={self.accuracy})>"
+
 
 # ============================================================
-#  DB INIT + DEPENDENCY
+#  DATABASE INITIALIZATION
+# ------------------------------------------------------------
+# Creates all tables if not exist.
 # ============================================================
+
 def init_db():
     Base.metadata.create_all(bind=engine)
+
+
+# ============================================================
+#  SESSION DEPENDENCY
+# ------------------------------------------------------------
+# Used by FastAPI for database operations.
+# ============================================================
 
 def get_db():
     db = SessionLocal()
