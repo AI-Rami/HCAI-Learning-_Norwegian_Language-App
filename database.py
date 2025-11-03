@@ -27,7 +27,6 @@ class User(Base):
     email = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    progress = relationship("UserProgress", back_populates="user", cascade="all, delete")
     tasks = relationship("Task", back_populates="student_obj", foreign_keys="Task.student_id")
     assigned_tasks = relationship("Task", back_populates="teacher_obj", foreign_keys="Task.teacher_id")
 
@@ -45,7 +44,6 @@ class Vocabulary(Base):
     difficulty_level = Column(Integer)
     pronunciation_guide = Column(String)
     example_sentence = Column(Text)
-
 
 
 # ============================================================
