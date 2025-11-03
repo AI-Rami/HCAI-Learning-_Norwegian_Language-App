@@ -49,18 +49,17 @@ except Exception:
 
 # ============================================================
 # API CONFIGURATION
-# ============================================================
-# Defines the backend URL (FastAPI server). For local use, keep localhost.
-# When deployed online, this should point to the hosted API endpoint.
-# ============================================================
-
+# Local Deployment :
 API_BASE = "http://localhost:8000"
+
+
+# Online Deployment :
+# API_BASE = "https://norwegian-ai-backend.onrender.com"
 
 # Page layout setup
 st.set_page_config(page_title="Norwegian Learning App", page_icon="🇳🇴", layout="centered")
 
 
-# ============================================================
 # HELPER FUNCTIONS
 # ============================================================
 
