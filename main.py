@@ -37,17 +37,74 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 from dotenv import load_dotenv
-from difflib import SequenceMatcher
-import json
 import os
 
-# Import from local modules
-from database import init_db, get_db, Vocabulary, Task
+# Local modules
+from database import init_db, get_db, User, Vocabulary, Task, TaskAttempt
 from ai.dialogue import NorwegianDialogueAI
 from ai.speech import WhisperSpeechToText
 
 # Load environment variables
 load_dotenv()
+
+# ============================================================
+#  FASTAPI APP SETUP
+# ============================================================
+app = FastAPI(
+    title="Norwegian Learning API",
+    description="Backend for the Norwegian Learning App with AI dialogue, speech feedback, and teacher–student system.",
+    version="2.2.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+dialogue_ai = None
+speech_ai = None
+
+@app.on_event("startup")
+def startup_event():
+    global dialogue_ai, speech_ai
+    init_db()
+    dialogue_ai = NorwegianDialogueAI()
+    speech_ai = WhisperSpeechToText()
+
+
+
+# ============================================================
+#  USER ENDPOINTS
+# ============================================================
+class UserCreate(BaseModel):
+    username: str
+    role: str = "student"
+    email: Optional[str] = None
+
+@app.post("/users/register")
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    """Register new user (teacher or student)."""
+    existing = db.query(User).filter(User.username == user.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Username already exists.")
+    new_user = User(**user.dict())
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return {"message": f"User '{new_user.username}' created as {new_user.role}."}
+
+@app.get("/users")
+def list_users(role: Optional[str] = None, db: Session = Depends(get_db)):
+    """List all users or filter by role."""
+    q = db.query(User)
+    if role:
+        q = q.filter(User.role == role)
+    return q.order_by(User.created_at.desc()).all()
+
+
 
 
 # ============================================================
@@ -406,6 +463,82 @@ def teacher_feedback(
 def review_tasks(db: Session = Depends(get_db)):
     """Return all student tasks (most recent first)."""
     return db.query(Task).order_by(Task.created_at.desc()).all()
+
+
+
+# ============================================================
+#  TASK ATTEMPT ENDPOINTS (Retry System)
+# ------------------------------------------------------------
+# Allow students to record multiple attempts before submission.
+# Each attempt is saved separately, linked to its parent task.
+# ============================================================
+
+
+
+@app.post("/student/retry")
+async def record_attempt(
+    task_id: int = Form(...),
+    expected_text: str = Form(...),
+    audio: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Save a student's new practice attempt for a given task.
+    Does not mark task as submitted; used only for trying again.
+    """
+    global speech_ai
+    temp_audio_path = f"temp_{audio.filename}"
+    try:
+        with open(temp_audio_path, "wb") as f:
+            f.write(await audio.read())
+
+        # Run pronunciation analysis
+        result = speech_ai.analyze_pronunciation(expected_text, temp_audio_path)
+
+        # Create a TaskAttempt entry
+        attempt = TaskAttempt(
+            task_id=task_id,
+            accuracy=result.get("accuracy", 0.0),
+            heard=result.get("heard", "")
+        )
+        db.add(attempt)
+        db.commit()
+
+        # Return feedback without changing task status
+        return {
+            "message": "Attempt recorded successfully.",
+            "accuracy": result.get("accuracy", 0.0),
+            "heard": result.get("heard", ""),
+            "feedback": result.get("feedback", ""),
+            "gpt_feedback": result.get("gpt_feedback", "")
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Attempt recording failed: {e}")
+
+    finally:
+        if os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+
+
+@app.get("/student/attempts/{task_id}")
+def get_attempts(task_id: int, db: Session = Depends(get_db)):
+    """
+    Retrieve all retry attempts for a specific task.
+    Helps the student see progress before final submission.
+    """
+    attempts = db.query(TaskAttempt).filter(TaskAttempt.task_id == task_id).order_by(TaskAttempt.created_at.desc()).all()
+    if not attempts:
+        return {"message": "No attempts yet for this task."}
+    return [
+        {
+            "id": a.id,
+            "accuracy": a.accuracy,
+            "heard": a.heard,
+            "created_at": a.created_at.isoformat()
+        }
+        for a in attempts
+    ]
 
 # ============================================================
 #  RUN SERVER (LOCAL DEVELOPMENT)
