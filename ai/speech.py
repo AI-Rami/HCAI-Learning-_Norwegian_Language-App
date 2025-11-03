@@ -270,7 +270,7 @@ class WhisperSpeechToText:
 
         # Step 5 — Return full feedback structure
         return {
-            "accuracy": round(float(accuracy) * 100, 1),
+            "accuracy": round(float(accuracy), 4),
 
             "feedback": (
     "Utmerket uttale – det hørtes naturlig ut!"

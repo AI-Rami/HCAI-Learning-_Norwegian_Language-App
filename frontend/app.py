@@ -25,7 +25,7 @@ Provides both Student and Teacher interfaces.
 import streamlit as st
 import requests
 from difflib import SequenceMatcher
-
+from datetime import datetime
 # Optional mic recorder for speech practice
 try:
     from streamlit_mic_recorder import mic_recorder
@@ -148,7 +148,11 @@ if st.session_state.role == "Teacher":
                 st.info("No completed tasks yet.")
             for t in tasks:
                 with st.expander(f"🎓 {t['student']} — {t['sentence']}"):
-                    st.markdown(f"**Accuracy:** {t.get('accuracy', '-')}")
+                    raw_acc = t.get("accuracy", None)
+                    if raw_acc is not None:
+                        st.markdown(f"**Accuracy:** {round(raw_acc * 100, 1)}%")
+                    else:
+                        st.markdown("**Accuracy:** -")
                     st.markdown(f"**Heard:** {t.get('heard', '-')}")
                     st.markdown(f"**Status:** {t.get('status', '-')}")
                     feedback_text = st.text_area("Write feedback:", t.get('feedback', ''), key=f"f_{t['id']}")
@@ -330,64 +334,85 @@ elif st.session_state.role == "Student":
             tasks = r.json()
             if not tasks:
                 st.info("No tasks yet.")
+
+            # session dict to hold practice attempts per task (only in the UI)
+            if "practice_attempts" not in st.session_state:
+                st.session_state.practice_attempts = {}
+
             for t in tasks:
-                st.markdown(f"**Sentence:** {t['sentence']}")
+                st.markdown(f"### Sentence: {t['sentence']}")
                 st.markdown(f"**Status:** {t['status']}")
+
+                task_key = f"task_{t['id']}"
+                attempts = st.session_state.practice_attempts.get(task_key, [])
+
                 if t["status"] == "pending":
-                    st.markdown("### 🎯 Practice before submitting")
+                    st.subheader("🎯 Practice before submitting")
 
                     if _HAS_REC:
                         audio = mic_recorder(
                             start_prompt="🎙 Record practice attempt",
                             stop_prompt="🛑 Stop",
-                            key=f"rec_{t['id']}",
+                            key=f"practice_rec_{t['id']}",
                             use_container_width=True
                         )
 
-                        # Practice (retry) button
-                        if audio and st.button("🌀 Save Practice Attempt", key=f"retry_{t['id']}"):
-                            files = {"audio": ("retry.wav", audio["bytes"], "audio/wav")}
-                            data = {"task_id": t["id"], "expected_text": t["sentence"]}
-                            res_retry = requests.post(f"{API_BASE}/student/retry", files=files, data=data)
-                            if res_retry.status_code == 200:
-                                rj = res_retry.json()
-                                st.success(f"Attempt saved! Accuracy: {round(rj.get('accuracy', 0) * 100, 1)}%")
-                                st.caption(f"Heard: {rj.get('heard', '-')}")
-                                st.rerun()
-                            else:
-                                st.error("Retry attempt failed.")
-
-                        # View previous attempts
-                        res_attempts = requests.get(f"{API_BASE}/student/attempts/{t['id']}")
-                        if res_attempts.status_code == 200:
-                            attempts = res_attempts.json()
-                            if isinstance(attempts, list) and attempts:
-                                st.markdown("#### 🧩 Your Attempts")
-                                for a in attempts[:3]:  # show last 3
-                                    st.write(f"🕒 {a['created_at'][:19]} — Accuracy: {round(a['accuracy'] * 100, 1)}%")
-                                    st.caption(f"Heard: {a['heard']}")
-                            else:
-                                st.info("No attempts yet — record one above!")
-
-                        # Final submission
-                        if st.button("✅ Submit Final Task", key=f"submit_{t['id']}"):
-                            st.markdown("Analyzing and submitting your best result...")
-                            files = {"audio": ("task_final.wav", audio["bytes"], "audio/wav")}
+                        # Save a practice attempt (stays on student side only)
+                        if audio and st.button("💾 Save Practice Attempt", key=f"save_attempt_{t['id']}"):
+                            files = {"audio": ("task_practice.wav", audio["bytes"], "audio/wav")}
                             data = {"expected_text": t["sentence"]}
                             res_ai = requests.post(f"{API_BASE}/ai/speech/pronunciation", files=files, data=data)
+
                             if res_ai.status_code == 200:
                                 result = res_ai.json()
-                                accuracy = result.get("accuracy", 0)
+                                raw_acc = float(result.get("accuracy", 0.0))  # 0–1, as returned by API
                                 heard = result.get("heard", "")
-                                data2 = {"task_id": t["id"], "accuracy": accuracy, "heard": heard}
-                                res2 = requests.post(f"{API_BASE}/student/submit", data=data2)
-                                if res2.status_code == 200:
-                                    st.success("✅ Final task submitted successfully!")
-                                    st.rerun()
-                                else:
-                                    st.error("Failed to save final result.")
+
+                                attempts.append({
+                                    "timestamp": datetime.utcnow().isoformat(timespec="seconds"),
+                                    "accuracy": raw_acc,  # keep raw 0–1 here
+                                    "heard": heard,
+                                })
+                                st.session_state.practice_attempts[task_key] = attempts
+                                st.success("Practice attempt saved!")
                             else:
-                                st.error("AI analysis failed. Try again.")
+                                st.error("AI analysis failed. Please try again.")
                     else:
                         st.warning("Microphone not available.")
 
+                    # Show practice attempts (for the student)
+                    if attempts:
+                        st.subheader("🧪 Your Attempts")
+                        for att in attempts:
+                            acc_percent = round(att["accuracy"] * 100, 1)
+                            st.markdown(
+                                f"⏱ {att['timestamp']} — **Accuracy:** {acc_percent}%"
+                            )
+                            st.caption(f"Heard: {att['heard']}")
+
+                        # Submit best attempt to teacher
+                        if st.button("✅ Submit Final Task", key=f"submit_final_{t['id']}"):
+                            best_attempt = max(attempts, key=lambda a: a["accuracy"])
+                            data2 = {
+                                "task_id": t["id"],
+                                # IMPORTANT: submit raw 0–1 accuracy to backend
+                                "accuracy": best_attempt["accuracy"],
+                                "heard": best_attempt["heard"],
+                            }
+                            res2 = requests.post(f"{API_BASE}/student/submit", data=data2)
+                            if res2.status_code == 200:
+                                st.success("✅ Task submitted with your best attempt!")
+                                st.rerun()
+                            else:
+                                st.error("Failed to save result to database.")
+                    else:
+                        st.info("Record and save a few practice attempts before submitting.")
+
+                else:
+                    # status != pending → already submitted
+                    st.markdown(f"**Accuracy:** {round(t.get('accuracy', 0.0) * 100, 1)}%")
+                    st.markdown(f"**Heard:** {t.get('heard', '-')}")
+                    st.markdown(f"**Teacher Feedback:** {t.get('feedback', '-')}")
+                    st.markdown("---")
+        else:
+            st.error("Failed to load tasks.")
