@@ -334,20 +334,47 @@ elif st.session_state.role == "Student":
                 st.markdown(f"**Sentence:** {t['sentence']}")
                 st.markdown(f"**Status:** {t['status']}")
                 if t["status"] == "pending":
+                    st.markdown("### 🎯 Practice before submitting")
+
                     if _HAS_REC:
                         audio = mic_recorder(
-                            start_prompt="🎙 Record answer",
+                            start_prompt="🎙 Record practice attempt",
                             stop_prompt="🛑 Stop",
                             key=f"rec_{t['id']}",
                             use_container_width=True
                         )
-                        if audio and st.button("📩 Submit Recording", key=f"submit_{t['id']}"):
-                            # Step 1: send audio to AI for real pronunciation analysis
-                            files = {"audio": ("task.wav", audio["bytes"], "audio/wav")}
+
+                        # Practice (retry) button
+                        if audio and st.button("🌀 Save Practice Attempt", key=f"retry_{t['id']}"):
+                            files = {"audio": ("retry.wav", audio["bytes"], "audio/wav")}
+                            data = {"task_id": t["id"], "expected_text": t["sentence"]}
+                            res_retry = requests.post(f"{API_BASE}/student/retry", files=files, data=data)
+                            if res_retry.status_code == 200:
+                                rj = res_retry.json()
+                                st.success(f"Attempt saved! Accuracy: {round(rj.get('accuracy', 0) * 100, 1)}%")
+                                st.caption(f"Heard: {rj.get('heard', '-')}")
+                                st.rerun()
+                            else:
+                                st.error("Retry attempt failed.")
+
+                        # View previous attempts
+                        res_attempts = requests.get(f"{API_BASE}/student/attempts/{t['id']}")
+                        if res_attempts.status_code == 200:
+                            attempts = res_attempts.json()
+                            if isinstance(attempts, list) and attempts:
+                                st.markdown("#### 🧩 Your Attempts")
+                                for a in attempts[:3]:  # show last 3
+                                    st.write(f"🕒 {a['created_at'][:19]} — Accuracy: {round(a['accuracy'] * 100, 1)}%")
+                                    st.caption(f"Heard: {a['heard']}")
+                            else:
+                                st.info("No attempts yet — record one above!")
+
+                        # Final submission
+                        if st.button("✅ Submit Final Task", key=f"submit_{t['id']}"):
+                            st.markdown("Analyzing and submitting your best result...")
+                            files = {"audio": ("task_final.wav", audio["bytes"], "audio/wav")}
                             data = {"expected_text": t["sentence"]}
                             res_ai = requests.post(f"{API_BASE}/ai/speech/pronunciation", files=files, data=data)
-
-                            # Step 2: if AI succeeded, save its results into the task
                             if res_ai.status_code == 200:
                                 result = res_ai.json()
                                 accuracy = result.get("accuracy", 0)
@@ -355,16 +382,12 @@ elif st.session_state.role == "Student":
                                 data2 = {"task_id": t["id"], "accuracy": accuracy, "heard": heard}
                                 res2 = requests.post(f"{API_BASE}/student/submit", data=data2)
                                 if res2.status_code == 200:
-                                    st.success("✅ Task submitted with real AI analysis!")
+                                    st.success("✅ Final task submitted successfully!")
                                     st.rerun()
                                 else:
-                                    st.error("Failed to save result to database.")
+                                    st.error("Failed to save final result.")
                             else:
-                                st.error("AI analysis failed. Please try again.")
+                                st.error("AI analysis failed. Try again.")
                     else:
                         st.warning("Microphone not available.")
 
-                else:
-                    st.markdown(f"**Teacher Feedback:** {t.get('feedback', '-')}")
-        else:
-            st.error("Failed to load tasks.")
