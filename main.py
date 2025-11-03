@@ -1,33 +1,26 @@
 """
 main.py
 --------
-FastAPI backend for the Norwegian Language Learning App.
+Backend (FastAPI) for the Norwegian Language Learning App.
 
- Purpose:
-This backend connects Streamlit frontend to:
-  • the vocabulary database (add, read, update, delete)
-  • GPT-powered Norwegian dialogue tutor
-  • Whisper + GPT pronunciation feedback
+This file runs the API that connects to:
+  - The SQLite database (users, vocabulary, tasks, etc.)
+  - GPT (for AI dialogue)
+  - Whisper (for speech analysis and pronunciation feedback)
 
-
-
-Structure:
-  1. Imports and setup
-  2. Pydantic models for validation
-  3. FastAPI app initialization
-  4. Vocabulary CRUD endpoints
-  5. AI dialogue (GPT tutor)
-  6. Speech pronunciation & free-talk feedback (Whisper + GPT)
+It supports both students and teachers.
+Students can learn words, practice pronunciation, and chat with AI.
+Teachers can assign tasks, check results, and give feedback.
 """
 
 # ============================================================
-#  IMPORTS
-# ------------------------------------------------------------
-# FastAPI — the web framework for serving API endpoints.
-# SQLAlchemy — connects to the SQLite database through Session.
-# Pydantic — validates request/response models.
-# dotenv — loads environment variables (like the OpenAI API key).
-# difflib — used for computing pronunciation similarity.
+# IMPORTS
+# ============================================================
+# FastAPI: framework that runs the backend API.
+# SQLAlchemy: connects and saves data to the database.
+# Pydantic: checks incoming and outgoing data formats.
+# dotenv: loads environment variables like the OpenAI key.
+# datetime: helps store timestamps.
 # ============================================================
 
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Body
@@ -39,54 +32,63 @@ from datetime import datetime
 from dotenv import load_dotenv
 import os
 
-# Local modules
+# Local project files
 from database import init_db, get_db, User, Vocabulary, Task, TaskAttempt
 from ai.dialogue import NorwegianDialogueAI
 from ai.speech import WhisperSpeechToText
 
-# Load environment variables
+# Load OpenAI key and any other environment variables from .env
 load_dotenv()
 
 # ============================================================
-#  FASTAPI APP SETUP
+# APP SETUP
 # ============================================================
+# Creates the FastAPI application.
+# CORS middleware allows the frontend (Streamlit) to connect.
+# ============================================================
+
 app = FastAPI(
     title="Norwegian Learning API",
-    description="Backend for the Norwegian Learning App with AI dialogue, speech feedback, and teacher–student system.",
+    description="Backend for the Norwegian Language Learning App with AI dialogue, speech feedback, and teacher–student system.",
     version="2.2.0"
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],      # Allow all origins (safe for local use)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Load AI models (GPT and Whisper) when the app starts
 dialogue_ai = None
 speech_ai = None
 
 @app.on_event("startup")
 def startup_event():
+    """Runs automatically when the API starts."""
     global dialogue_ai, speech_ai
-    init_db()
-    dialogue_ai = NorwegianDialogueAI()
-    speech_ai = WhisperSpeechToText()
-
+    init_db()  # Create tables if they don’t exist
+    dialogue_ai = NorwegianDialogueAI()  # GPT for AI dialogue
+    speech_ai = WhisperSpeechToText()    # Whisper for pronunciation
 
 
 # ============================================================
-#  USER ENDPOINTS
+# USER ENDPOINTS
 # ============================================================
+# Manage students and teachers in the database.
+# ============================================================
+
 class UserCreate(BaseModel):
     username: str
     role: str = "student"
     email: Optional[str] = None
 
+
 @app.post("/users/register")
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    """Register new user (teacher or student)."""
+    """Add a new user (student or teacher)."""
     existing = db.query(User).filter(User.username == user.username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists.")
@@ -96,21 +98,20 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return {"message": f"User '{new_user.username}' created as {new_user.role}."}
 
+
 @app.get("/users")
 def list_users(role: Optional[str] = None, db: Session = Depends(get_db)):
-    """List all users or filter by role."""
+    """List all users. Can filter by role (student/teacher)."""
     q = db.query(User)
     if role:
         q = q.filter(User.role == role)
     return q.order_by(User.created_at.desc()).all()
 
 
-
-
 # ============================================================
-# PYDANTIC MODELS
-# ------------------------------------------------------------
-# These define the expected structure for incoming and outgoing data.
+# DATA MODELS FOR REQUESTS AND RESPONSES
+# ============================================================
+# These describe the data format expected by FastAPI.
 # ============================================================
 
 class VocabularyCreate(BaseModel):
@@ -147,53 +148,14 @@ class DialogueResponse(BaseModel):
 
 
 # ============================================================
-# ️ FASTAPI APP SETUP
-# ------------------------------------------------------------
-# Creates the app instance and allows  frontend to communicate with it.
+# ROOT AND HEALTH ENDPOINTS
 # ============================================================
-
-app = FastAPI(
-    title="Norwegian Learning API",
-    description="Simplified backend combining GPT and Whisper for Norwegian learning.",
-    version="2.1.0"
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allow all during development
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-# ============================================================
-#  STARTUP EVENT
-# ------------------------------------------------------------
-# Initializes the database and AI models once when the server starts.
-# ============================================================
-
-dialogue_ai = None
-speech_ai = None
-
-@app.on_event("startup")
-def startup_event():
-    global dialogue_ai, speech_ai
-    init_db()
-    dialogue_ai = NorwegianDialogueAI()   # GPT-based dialogue model
-    speech_ai = WhisperSpeechToText()     # Whisper-based transcription model
-
-
-# ============================================================
-# ROOT & HEALTH CHECK
-# ------------------------------------------------------------
-# Root: gives info and available routes.
-# Health: used for simple uptime verification.
+# Used to test that the API is online.
 # ============================================================
 
 @app.get("/")
 def read_root():
-    """Landing endpoint for info."""
+    """Main page for the API. Shows available routes."""
     return {
         "message": "Welcome to the Norwegian Learning API",
         "version": "2.1.0",
@@ -202,17 +164,18 @@ def read_root():
         ],
     }
 
+
 @app.get("/health")
 def health_check():
-    """Quick deployment health check."""
+    """Used for checking if the backend is running."""
     return {"status": "healthy", "timestamp": datetime.utcnow()}
 
 
 # ============================================================
-#  VOCABULARY ENDPOINTS (CRUD)
-# ------------------------------------------------------------
-# These endpoints let the frontend add, read, edit, and delete words.
-# They directly read/write from the SQLite database.
+# VOCABULARY ENDPOINTS
+# ============================================================
+# Let the app store and read vocabulary words.
+# Students can add new words and view existing ones.
 # ============================================================
 
 @app.get("/vocabulary", response_model=List[VocabularyResponse])
@@ -223,7 +186,7 @@ def get_vocabulary(
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    """Fetch vocabulary items (optionally filtered)."""
+    """Get all vocabulary words (you can filter by category or level)."""
     query = db.query(Vocabulary)
     if category:
         query = query.filter(Vocabulary.category == category)
@@ -258,7 +221,7 @@ def update_vocabulary(vocabulary_id: int, updated_data: dict = Body(...), db: Se
 
 @app.delete("/vocabulary/{vocabulary_id}")
 def delete_vocabulary(vocabulary_id: int, db: Session = Depends(get_db)):
-    """Remove a word from the vocabulary list."""
+    """Delete a vocabulary word by its ID."""
     vocab = db.query(Vocabulary).filter(Vocabulary.id == vocabulary_id).first()
     if not vocab:
         raise HTTPException(status_code=404, detail="Vocabulary not found")
@@ -267,17 +230,16 @@ def delete_vocabulary(vocabulary_id: int, db: Session = Depends(get_db)):
     return {"message": f"✅ Word {vocabulary_id} deleted successfully"}
 
 
-
 # ============================================================
-#  AI DIALOGUE ENDPOINTS
-# ------------------------------------------------------------
-# Handles chat-based conversation with GPT, acting as a tutor.
-# Difficulty affects how complex the Norwegian reply will be.
+# AI DIALOGUE ENDPOINTS
+# ============================================================
+# Handles chat between the user and GPT-based Norwegian tutor.
+# The AI adapts to the user's difficulty level.
 # ============================================================
 
 @app.post("/ai/dialogue", response_model=DialogueResponse)
 def practice_dialogue(request: DialogueRequest):
-    """Generate AI tutor reply in Norwegian + English translation."""
+    """Generate AI reply (in Norwegian + English)."""
     global dialogue_ai
     reply = dialogue_ai.generate_response(request.message, request.difficulty_level)
 
@@ -294,19 +256,17 @@ def practice_dialogue(request: DialogueRequest):
 
 @app.post("/ai/dialogue/reset")
 def reset_dialogue():
-    """Clear chat memory to start a new conversation."""
+    """Clear previous chat memory."""
     global dialogue_ai
     dialogue_ai.reset()
     return {"message": "🧹 Chat history cleared."}
 
 
 # ============================================================
-#  SPEECH ANALYSIS ENDPOINTS (Whisper + GPT)
-# ------------------------------------------------------------
-# 1️ check_pronunciation , user reads a target sentence
-# 2️ free_feedback ,  user speaks freely
-#
-# Both use Whisper to transcribe audio and GPT to rate and comment.
+# SPEECH ENDPOINTS (Whisper + GPT)
+# ============================================================
+# 1. /ai/speech/pronunciation → compares student’s pronunciation with target sentence
+# 2. /ai/speech/free_feedback → general feedback on free speech
 # ============================================================
 
 @app.post("/ai/speech/pronunciation")
@@ -314,13 +274,11 @@ async def check_pronunciation(
     expected_text: str = Form(...),
     audio: UploadFile = File(...),
 ):
-    """
-    Analyze pronunciation accuracy and give GPT feedback.
-    Uses WhisperSpeechToText.analyze_pronunciation() for full pipeline.
-    """
+    """Check pronunciation and return accuracy + GPT feedback."""
     global speech_ai
     temp_audio_path = f"temp_{audio.filename}"
     try:
+        # Save temporary file and send it to Whisper + GPT
         with open(temp_audio_path, "wb") as f:
             f.write(await audio.read())
 
@@ -346,34 +304,23 @@ async def check_pronunciation(
 
 @app.post("/ai/speech/free_feedback")
 async def free_feedback(audio: UploadFile = File(...)):
-    """
-    Freestyle pronunciation and fluency feedback (no accuracy scoring).
-    The learner speaks freely — Whisper transcribes and GPT comments on pronunciation, grammar, and meaning.
-    """
+    """Give general pronunciation and fluency feedback (no score)."""
     global speech_ai
     temp_audio_path = f"temp_{audio.filename}"
 
     try:
-        # Save the recording
+        # Save temporary recording
         with open(temp_audio_path, "wb") as f:
             f.write(await audio.read())
 
-        # Step 1 — Transcribe using Whisper
+        # Step 1: Transcribe what the student said
         heard = speech_ai.transcribe_audio(temp_audio_path, language="no")
 
-        # Step 2 — Ask GPT for natural feedback
+        # Step 2: Ask GPT for feedback
         msg = (
             "You are an experienced Norwegian language tutor and pronunciation coach. "
-            "The learner just spoke freely in Norwegian — your job is to give holistic feedback. "
-            "Evaluate the speech in three areas:\n"
-            "1️⃣ Pronunciation – clarity, rhythm, vowel/consonant accuracy, stress.\n"
-            "2️⃣ Grammar – sentence structure, word order, verb forms.\n"
-            "3️⃣ Meaning – does it make sense, and how natural does it sound?\n\n"
-            f"🎧 Transcribed speech:\n{heard}\n\n"
-            "Then reply with this structure:\n"
-            "🗣️ **Norwegian feedback:** 2–3 sentences in Norwegian giving praise and gentle correction.\n"
-            "_Then provide the English translation below in italics._\n"
-            "💡 **Tip (English):** Offer one short, practical improvement idea."
+            "The learner just spoke freely in Norwegian — give short, friendly feedback "
+            "about pronunciation, grammar, and how natural it sounds."
         )
 
         resp = speech_ai.client.chat.completions.create(
@@ -381,8 +328,8 @@ async def free_feedback(audio: UploadFile = File(...)):
             temperature=0.6,
             max_tokens=350,
             messages=[
-                {"role": "system", "content": "Be warm, supportive, and natural like a real Norwegian teacher."},
-                {"role": "user", "content": msg},
+                {"role": "system", "content": "Be warm and natural like a real Norwegian teacher."},
+                {"role": "user", "content": msg + f"\n\n🎧 Speech:\n{heard}"},
             ],
         )
 
@@ -402,10 +349,13 @@ async def free_feedback(audio: UploadFile = File(...)):
             os.remove(temp_audio_path)
 
 
-
 # ============================================================
-#  TEACHER–STUDENT COLLABORATION ENDPOINTS
-# ------------------------------------------------------------
+# TEACHER–STUDENT ENDPOINTS
+# ============================================================
+# Teachers can assign tasks.
+# Students can see, practice, submit, and get feedback.
+# ============================================================
+
 @app.post("/teacher/task")
 def assign_task(
     teacher: str = Form(...),
@@ -413,7 +363,7 @@ def assign_task(
     sentence: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    """Teacher assigns a new sentence for a student to practice."""
+    """Teacher creates a new pronunciation task for a student."""
     task = Task(teacher=teacher, student=student, sentence=sentence)
     db.add(task)
     db.commit()
@@ -422,7 +372,7 @@ def assign_task(
 
 @app.get("/student/tasks")
 def get_student_tasks(student: str, db: Session = Depends(get_db)):
-    """Return all tasks assigned to a given student."""
+    """List all tasks assigned to a specific student."""
     return db.query(Task).filter(Task.student == student).order_by(Task.created_at.desc()).all()
 
 
@@ -433,7 +383,7 @@ def submit_task(
     heard: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    """Student submits pronunciation accuracy and transcription."""
+    """Student submits their best pronunciation result."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found.")
@@ -450,7 +400,7 @@ def teacher_feedback(
     feedback: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    """Teacher sends written feedback after reviewing a task."""
+    """Teacher adds written feedback to a completed task."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found.")
@@ -461,19 +411,16 @@ def teacher_feedback(
 
 @app.get("/teacher/review")
 def review_tasks(db: Session = Depends(get_db)):
-    """Return all student tasks (most recent first)."""
+    """Show all student tasks (for teacher review)."""
     return db.query(Task).order_by(Task.created_at.desc()).all()
 
 
-
 # ============================================================
-#  TASK ATTEMPT ENDPOINTS (Retry System)
-# ------------------------------------------------------------
-# Allow students to record multiple attempts before submission.
-# Each attempt is saved separately, linked to its parent task.
+# TASK ATTEMPTS (RETRY SYSTEM)
 # ============================================================
-
-
+# Students can record several practice attempts before submitting.
+# Each attempt is stored separately.
+# ============================================================
 
 @app.post("/student/retry")
 async def record_attempt(
@@ -482,20 +429,18 @@ async def record_attempt(
     audio: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Save a student's new practice attempt for a given task.
-    Does not mark task as submitted; used only for trying again.
-    """
+    """Save a student's extra practice attempt (not final submission)."""
     global speech_ai
     temp_audio_path = f"temp_{audio.filename}"
     try:
+        # Save temporary file
         with open(temp_audio_path, "wb") as f:
             f.write(await audio.read())
 
-        # Run pronunciation analysis
+        # Analyze pronunciation using Whisper + GPT
         result = speech_ai.analyze_pronunciation(expected_text, temp_audio_path)
 
-        # Create a TaskAttempt entry
+        # Save result as a new attempt record
         attempt = TaskAttempt(
             task_id=task_id,
             accuracy=result.get("accuracy", 0.0),
@@ -504,7 +449,7 @@ async def record_attempt(
         db.add(attempt)
         db.commit()
 
-        # Return feedback without changing task status
+        # Return AI feedback (task status not changed yet)
         return {
             "message": "Attempt recorded successfully.",
             "accuracy": result.get("accuracy", 0.0),
@@ -523,10 +468,7 @@ async def record_attempt(
 
 @app.get("/student/attempts/{task_id}")
 def get_attempts(task_id: int, db: Session = Depends(get_db)):
-    """
-    Retrieve all retry attempts for a specific task.
-    Helps the student see progress before final submission.
-    """
+    """List all recorded attempts for one specific task."""
     attempts = db.query(TaskAttempt).filter(TaskAttempt.task_id == task_id).order_by(TaskAttempt.created_at.desc()).all()
     if not attempts:
         return {"message": "No attempts yet for this task."}
@@ -540,12 +482,14 @@ def get_attempts(task_id: int, db: Session = Depends(get_db)):
         for a in attempts
     ]
 
+
 # ============================================================
-#  RUN SERVER (LOCAL DEVELOPMENT)
-# ------------------------------------------------------------
-# Launches Uvicorn server when run directly:
+# RUN THE SERVER (LOCAL USE)
+# ============================================================
+# Use this only for testing locally:
 #     python main.py
-# In deployment (Render, etc.), use: uvicorn main:app
+# For deployment, use:
+#     uvicorn main:app
 # ============================================================
 
 if __name__ == "__main__":
