@@ -2,16 +2,14 @@
 speech.py
 ----------
 AI Speech Processing Module for the Norwegian Language App
-===========================================================
 
 Purpose:
---------
-This module handles everything related to **speech input and pronunciation feedback**.
-It listens to what the learner says, transcribes it to text using **OpenAI Whisper**,
-compares it with the expected sentence, and generates feedback using **GPT**.
+
+This module handles everything related to speech input and pronunciation feedback.
+It listens to what the learner says, transcribes it to text using OpenAI Whisper,
+compares it with the expected sentence, and generates feedback using GPT.
 
 Main features:
---------------
 1. Convert recorded audio into text (transcription)
 2. Compare spoken vs. expected text to measure pronunciation accuracy
 3. Estimate speech speed (words per second)
@@ -19,10 +17,9 @@ Main features:
 5. Highlight correctly/incorrectly pronounced words
 
 Structure:
-----------
 1. Imports and dependency setup
 2. Helper functions for comparing and measuring speech
-3. The `WhisperSpeechToText` class:
+3. The WhisperSpeechToText class:
    - Setup and initialization
    - Audio transcription with Whisper
    - Pronunciation analysis pipeline
@@ -30,13 +27,13 @@ Structure:
    - Highlighting of correct/incorrect words
 """
 
-# ============================================================
+
 # IMPORTS
-# ============================================================
+
 # os: Access environment variables (like the OpenAI API key)
 # difflib: Compare two strings for similarity
 # io: Used for reading files in buffered format
-# pydub: Estimate audio length and speech pace (optional)
+# pydub: Estimate audio length and speech pace
 # openai: Used to connect to Whisper and GPT models
 # ============================================================
 
@@ -44,7 +41,7 @@ import os
 from difflib import SequenceMatcher
 from io import BufferedReader
 
-# Try loading pydub for audio duration (optional)
+# Try loading pydub for audio duration
 try:
     from pydub import AudioSegment
     _HAS_PYDUB = True
@@ -66,12 +63,12 @@ except Exception:
     _HAS_OPENAI_LEGACY = False
 
 
-# ============================================================
+
 # HELPER FUNCTIONS
-# ============================================================
+
 # These support pronunciation analysis by measuring similarity
 # and estimating speaking pace.
-# ============================================================
+
 
 def _similarity(a: str, b: str) -> float:
     """
@@ -109,7 +106,7 @@ def _estimate_speech_speed_seconds(audio_path: str) -> float | None:
     Estimate how long the audio clip lasts (in seconds).
 
     Used to judge whether the learner spoke too quickly or slowly.
-    Requires pydub to be installed.
+
 
     Returns:
         float: duration in seconds, or None if estimation failed.
@@ -123,11 +120,11 @@ def _estimate_speech_speed_seconds(audio_path: str) -> float | None:
         return None
 
 
-# ============================================================
+
 # CLASS: WhisperSpeechToText
-# ============================================================
+
 # Core class that does all speech processing:
-#   - Converts audio → text (Whisper)
+#   - Converts audio to text (Whisper)
 #   - Compares text with expected sentence
 #   - Calculates accuracy and speed
 #   - Uses GPT to provide personalized feedback
@@ -162,9 +159,9 @@ class WhisperSpeechToText:
         else:
             raise Exception("OpenAI client not found. Install the 'openai' package.")
 
-    # ------------------------------------------------------------
-    # AUDIO → TEXT (TRANSCRIPTION)
-    # ------------------------------------------------------------
+
+    # AUDIO to  TEXT
+    #
     def transcribe_audio(self, temp_audio_path: str, language: str = "no") -> str:
         """
         Converts audio into text using OpenAI Whisper.
@@ -183,7 +180,7 @@ class WhisperSpeechToText:
 
         # Try re-encoding audio for consistency
         try:
-            from pydub import AudioSegment
+
             audio = AudioSegment.from_file(temp_audio_path)
             audio = audio.set_frame_rate(16000).set_sample_width(2)
             audio.export(temp_audio_path, format="wav")
@@ -216,7 +213,7 @@ class WhisperSpeechToText:
             print(f"[Whisper error] {e}")
             return f"[Transcription failed: {e}]"
 
-    # ------------------------------------------------------------
+
     # SPEECH SPEED COMMENT
     # ------------------------------------------------------------
     @staticmethod
@@ -235,7 +232,7 @@ class WhisperSpeechToText:
             return "You spoke very slowly — try a more natural pace."
         return "Nice pace."
 
-    # ------------------------------------------------------------
+
     # FULL PRONUNCIATION ANALYSIS
     # ------------------------------------------------------------
     def analyze_pronunciation(self, expected_text: str, temp_audio_path: str) -> dict:
@@ -322,7 +319,7 @@ class WhisperSpeechToText:
             "gpt_feedback": gpt_feedback,
         }
 
-    # ------------------------------------------------------------
+
     # WORD HIGHLIGHT VISUALIZATION
     # ------------------------------------------------------------
     @staticmethod
