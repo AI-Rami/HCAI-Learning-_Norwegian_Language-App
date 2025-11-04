@@ -1,13 +1,12 @@
 """
 dialogue.py
 ------------
-AI Module: Norwegian Language Dialogue Tutor (GPT-based)
-=========================================================
+
 This file handles all conversational interactions between
 the learner and the AI tutor.
 
 Purpose:
---------
+
 The goal of this module is to simulate a friendly, helpful
 Norwegian teacher who can correct grammar, explain mistakes,
 and hold short, supportive conversations in Norwegian.
@@ -15,16 +14,15 @@ and hold short, supportive conversations in Norwegian.
 It automatically detects whether the learner writes in
 Norwegian or English and adjusts the response style.
 
-If the message is in Norwegian → it gives:
+If the message is in Norwegian it gives:
   - A corrected version of the sentence
   - A natural AI reply (short conversation)
   - A simple grammar or vocabulary tip
 
-If the message is in English → it translates the text and replies
+If the message is in English it translates the text and replies
 in Norwegian (with English translation below).
 
 Structure:
-----------
 1. Imports and environment setup
 2. Class NorwegianDialogueAI:
    - Initialization (OpenAI setup)
@@ -33,13 +31,13 @@ Structure:
    - Generate structured GPT replies
 """
 
-# ============================================================
+
 # IMPORTS AND SETUP
-# ============================================================
+
 # os — to access environment variables (for API key)
 # logging — for saving GPT responses and errors
 # re — regular expressions for language detection
-# OpenAI — for accessing GPT models (e.g., gpt-4o)
+# OpenAI — for accessing GPT models ( gpt-4o)
 # dotenv — to load .env file containing the OpenAI API key
 # ============================================================
 
@@ -56,9 +54,9 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 
-# ============================================================
+
 # CLASS: NorwegianDialogueAI
-# ============================================================
+#
 # Main class that manages the AI conversation.
 # It connects to GPT, handles message flow, detects language,
 # and formats structured replies for the app.
@@ -83,9 +81,9 @@ class NorwegianDialogueAI:
         # Conversation history (stores recent messages for context)
         self.chat_history = []
 
-    # ------------------------------------------------------------
+
     # Reset chat memory
-    # ------------------------------------------------------------
+
     def reset(self):
         """
         Clears the chat memory.
@@ -94,9 +92,9 @@ class NorwegianDialogueAI:
         """
         self.chat_history = []
 
-    # ------------------------------------------------------------
+
     # Detect if text is Norwegian
-    # ------------------------------------------------------------
+
     def _looks_norwegian(self, text: str) -> bool:
         """
         Quick rule-based check to see if the text is likely Norwegian.
@@ -119,26 +117,24 @@ class NorwegianDialogueAI:
         count = sum(word in text_lower.split() for word in common_words)
         return count >= 2  # at least two matches = likely Norwegian
 
-    # ------------------------------------------------------------
+
     # Generate AI Response
-    # ------------------------------------------------------------
+
     def generate_response(self, user_message: str, difficulty: str = "beginner") -> str:
         """
         Generate a reply from GPT that fits the learner’s level and language.
 
         How it works:
-        -------------
+
         1. Detects if the message is written in Norwegian or English.
         2. Builds a GPT “system prompt” that sets the tutor’s tone and rules.
         3. Sends the message and context history to GPT.
         4. Receives a structured answer that includes:
-           - Correction (if Norwegian)
-           - Translation
-           - Grammar tip or feedback
+           Correction , Translation, Grammar tip or feedback
         5. Saves the interaction in chat history.
 
         Difficulty levels:
-        ------------------
+
         - beginner: simple sentences, English explanations
         - intermediate: mostly Norwegian, with short English help
         - advanced: fluent Norwegian + cultural notes
@@ -149,8 +145,7 @@ class NorwegianDialogueAI:
 
         # Step 2: Build GPT system prompt depending on language type
         if is_norwegian:
-            # The learner wrote in Norwegian
-            # → provide corrections, short dialogue, and grammar tip
+
             system_prompt = (
                 "You are a kind and experienced Norwegian language tutor helping learners "
                 "improve grammar, vocabulary, and confidence through short dialogues.\n\n"
@@ -159,17 +154,17 @@ class NorwegianDialogueAI:
                 "Keep it simple and correct any grammar or spelling mistakes.\n"
                 "💬 **AI (Norwegian):** Continue the conversation naturally in one or two short sentences.\n"
                 "_Add the English translation below in italics._\n"
-                "💡 **Tip (English):** Explain briefly one grammar or vocabulary point "
+                "💡 **Tip (English):** Explain grammar or vocabulary points "
                 "that can help the learner next time. Be supportive and positive.\n\n"
                 "Adjust your style based on the learner’s level:\n"
-                "- Beginner: very short, simple Norwegian with clear English translation.\n"
+                "- Beginner:  short, simple Norwegian with clear English translation.\n"
                 "- Intermediate: more Norwegian, English only for difficult parts.\n"
                 "- Advanced: fluent Norwegian and cultural/idiomatic notes.\n\n"
                 f"The learner’s current level is: {difficulty}."
             )
         else:
             # The learner wrote in English
-            # → translate into Norwegian and give the English version below
+            # translate into Norwegian and give the English version below
             system_prompt = (
                 "You are a Norwegian language tutor. "
                 "The learner has written in English — translate the message into Norwegian, "
@@ -214,12 +209,7 @@ class NorwegianDialogueAI:
             )
 
 
-# ============================================================
-# MANUAL TESTING (LOCAL)
-# ============================================================
-# You can run this file directly (python dialogue.py)
-# to test GPT conversation in the terminal.
-# ============================================================
+
 
 if __name__ == "__main__":
     ai = NorwegianDialogueAI()
