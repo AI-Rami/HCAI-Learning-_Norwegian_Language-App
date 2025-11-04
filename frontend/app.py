@@ -1,10 +1,10 @@
 """
 app.py
--------
+
 Streamlit Frontend for the Norwegian Language Learning App
 
 Overview:
----------
+
 This Streamlit application serves as the user interface for the Human-Centered AI
 Norwegian Learning system. It connects to the FastAPI backend and provides
 two separate interfaces:
@@ -24,19 +24,15 @@ The app uses the REST API endpoints provided by the FastAPI backend
 (`http://localhost:8000` by default).
 """
 
-# ============================================================
 # IMPORTS
-# ============================================================
+
 # Streamlit builds the web UI
 # Requests handles communication with the FastAPI backend
-# SequenceMatcher is used for simple text similarity comparisons
 # datetime is used for time stamps on practice attempts
 # The microphone feature (streamlit_mic_recorder)
-# ============================================================
 
 import streamlit as st
 import requests
-from difflib import SequenceMatcher
 from datetime import datetime
 
 #  microphone recording
@@ -47,7 +43,7 @@ except Exception:
     _HAS_REC = False
 
 
-# ============================================================
+
 # API CONFIGURATION
 # Local Deployment :
 API_BASE = "http://localhost:8000"
@@ -61,25 +57,11 @@ st.set_page_config(page_title="Norwegian Learning App", page_icon="🇳🇴", la
 
 
 # HELPER FUNCTIONS
-# ============================================================
-
-def _similarity(a: str, b: str) -> float:
-    """
-    Compute similarity between two strings (0–1 scale).
-    Used internally for quick comparisons between text fields.
-    """
-    a, b = (a or "").lower().strip(), (b or "").lower().strip()
-    if not a and not b:
-        return 1.0
-    if not a or not b:
-        return 0.0
-    return SequenceMatcher(None, a, b).ratio()
-
 
 def _tone_style(tone: str):
     """
     Map a tone (string) to an emoji and color.
-    Currently unused but can be extended for sentiment visualization.
+
     """
     tone = (tone or "").lower()
     if tone == "praise":
@@ -89,13 +71,13 @@ def _tone_style(tone: str):
     return "😐", "#2196f3"
 
 
-# ============================================================
+
 # ROLE SELECTION (ONBOARDING)
-# ============================================================
+
 # At startup, users choose their role: Student or Teacher.
 # The selection determines which interface is loaded below.
 # The role is stored in Streamlit's session state.
-# ============================================================
+
 
 if "role" not in st.session_state:
     st.session_state.role = None
@@ -115,12 +97,12 @@ if st.session_state.role is None:
     st.stop()
 
 
-# ============================================================
+
 # SIDEBAR CONFIGURATION
-# ============================================================
+
 # Displays current backend connection info and a button to
 # switch back to the role selection screen.
-# ============================================================
+
 
 st.sidebar.caption(f"🌐 Connected to: {API_BASE}")
 if st.sidebar.button("🔁 Switch Role"):
@@ -128,22 +110,22 @@ if st.sidebar.button("🔁 Switch Role"):
     st.rerun()
 
 
-# ============================================================
+
 # TEACHER INTERFACE
-# ============================================================
+
 # This interface provides two tabs:
 #   1. Assign Task – send a new pronunciation sentence to a student
 #   2. Review Students – view completed tasks, see accuracy, and send feedback
-# ============================================================
+
 
 if st.session_state.role == "Teacher":
     st.title("👩‍🏫 Teacher Dashboard")
 
     tabs = st.tabs(["📩 Assign Task", "📝 Review Students"])
 
-    # -----------------------------
+
     # TAB 1 — ASSIGN TASK
-    # -----------------------------
+
     with tabs[0]:
         st.subheader("Assign a new task")
         teacher_name = st.text_input("Teacher name:", "Teacher1")
@@ -161,9 +143,9 @@ if st.session_state.role == "Teacher":
             else:
                 st.warning("Please fill in both fields before sending.")
 
-    # -----------------------------
+
     # TAB 2 — REVIEW STUDENTS
-    # -----------------------------
+
     with tabs[1]:
         st.subheader("Review submitted tasks")
         res = requests.get(f"{API_BASE}/teacher/review")
@@ -198,15 +180,15 @@ if st.session_state.role == "Teacher":
             st.error("Could not load tasks from server.")
 
 
-# ============================================================
+
 # STUDENT INTERFACE
-# ============================================================
+
 # Students can:
 #   - Add vocabulary words
 #   - Chat with AI in Norwegian
 #   - Record and analyze pronunciation
 #   - View and submit assigned tasks
-# ============================================================
+
 
 elif st.session_state.role == "Student":
     st.title("👨‍🎓 Student Page")
@@ -220,12 +202,12 @@ elif st.session_state.role == "Student":
     tabs = st.tabs(["📚 Vocabulary", "💬 AI Dialogue", "🎙️ Speech Practice", "🗓 My Tasks"])
 
 
-    # ============================================================
+
     # TAB 1: VOCABULARY
-    # ============================================================
+
     # Allows students to add new Norwegian–English word pairs and
     # browse all vocabulary items stored in the database.
-    # ============================================================
+
     with tabs[0]:
         st.header("📚 Vocabulary")
         st.subheader("Add a new word")
@@ -264,13 +246,13 @@ elif st.session_state.role == "Student":
                 st.error("Failed to load vocabulary.")
 
 
-    # ============================================================
+
     # TAB 2: AI DIALOGUE
-    # ============================================================
+
     # Chatbot practice using GPT-based dialogue tutor.
     # The user writes in English or Norwegian, and GPT replies in
     # Norwegian with translation and short tips based on difficulty level.
-    # ============================================================
+
     with tabs[1]:
         st.header("💬 AI Dialogue Practice")
 
@@ -304,21 +286,21 @@ elif st.session_state.role == "Student":
             st.rerun()
 
 
-    # ============================================================
+
     # TAB 3: SPEECH PRACTICE
-    # ============================================================
+
     # Three speech practice modes:
     #   1. Repeat a target sentence aloud
     #   2. Upload a pre-recorded audio file
     #   3. Speak freely for general pronunciation feedback
-    # ============================================================
+
     with tabs[2]:
         st.header("🎙️ Speech Practice")
         t1, t2, t3 = st.tabs(["🗣 Repeat after me", "📂 Upload", "💬 Speak freely"])
 
-        # -----------------------------
+
         # Repeat after me (mic input)
-        # -----------------------------
+
         with t1:
             st.markdown("Record your voice to practice pronunciation.")
             if _HAS_REC:
@@ -339,9 +321,9 @@ elif st.session_state.role == "Student":
             else:
                 st.warning("Microphone not available.")
 
-        # -----------------------------
+
         # Upload mode (file input)
-        # -----------------------------
+
         with t2:
             st.markdown("Upload a recording to check pronunciation.")
             file = st.file_uploader("Upload WAV/MP3", type=["wav", "mp3"])
@@ -362,9 +344,9 @@ elif st.session_state.role == "Student":
                 else:
                     st.warning("Please upload audio and enter text.")
 
-        # -----------------------------
+
         # Free speech mode
-        # -----------------------------
+
         with t3:
             st.markdown("Speak freely — AI will give general feedback.")
             if _HAS_REC:
@@ -380,15 +362,15 @@ elif st.session_state.role == "Student":
                 st.warning("Microphone not available.")
 
 
-    # ============================================================
+
     # TAB 4: MY TASKS
-    # ============================================================
+
     # Displays all pronunciation tasks assigned by a teacher.
     # Students can:
     #   - Record multiple practice attempts
     #   - View feedback from the AI on each attempt
     #   - Submit their best attempt for teacher review
-    # ============================================================
+
     with tabs[3]:
         st.header("🗓 My Tasks")
         r = requests.get(f"{API_BASE}/student/tasks", params={"student": name})
