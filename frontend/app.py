@@ -242,6 +242,15 @@ elif st.session_state.role == "Student":
                     with st.expander(f"{v['norwegian_word']} → {v['english_translation']}"):
                         st.write(f"Category: {v['category']}")
                         st.write(f"Example: {v.get('example_sentence', '-')}")
+                        # Delete vocabulary button
+                        if st.button(f"🗑 Delete '{v['norwegian_word']}'", key=f"del_{v['id']}"):
+                            res_del = requests.delete(f"{API_BASE}/vocabulary/{v['id']}")
+                            if res_del.status_code == 200:
+                                st.success("✅ Word deleted successfully!")
+                                st.rerun()
+                            else:
+                                st.error("❌ Failed to delete word.")
+
             else:
                 st.error("Failed to load vocabulary.")
 
