@@ -83,15 +83,15 @@ if "role" not in st.session_state:
     st.session_state.role = None
 
 if st.session_state.role is None:
-    st.title("👋 Welcome to the Norwegian Learning App")
+    st.title(" Welcome to the Norwegian Learning App")
     st.markdown("""
     Choose your role to continue:
 
-    - **👨‍🎓 Student:** Learn Norwegian, practice speaking, and complete your tasks.
-    - **👩‍🏫 Teacher:** Assign and review pronunciation tasks.
+    - ** Student:** Learn Norwegian, practice speaking, and complete your tasks.
+    - ** Teacher:** Assign and review pronunciation tasks.
     """)
     choice = st.radio("Select your role:", ["Student", "Teacher"])
-    if st.button("🚀 Continue"):
+    if st.button(" Continue"):
         st.session_state.role = choice
         st.rerun()
     st.stop()
@@ -104,8 +104,8 @@ if st.session_state.role is None:
 # switch back to the role selection screen.
 
 
-st.sidebar.caption(f"🌐 Connected to: {API_BASE}")
-if st.sidebar.button("🔁 Switch Role"):
+st.sidebar.caption(f" Connected to: {API_BASE}")
+if st.sidebar.button(" Switch Role"):
     st.session_state.role = None
     st.rerun()
 
@@ -119,9 +119,9 @@ if st.sidebar.button("🔁 Switch Role"):
 
 
 if st.session_state.role == "Teacher":
-    st.title("👩‍🏫 Teacher Dashboard")
+    st.title(" Teacher Dashboard")
 
-    tabs = st.tabs(["📩 Assign Task", "📝 Review Students"])
+    tabs = st.tabs([" Assign Task", " Review Students"])
 
 
     # TAB 1 — ASSIGN TASK
@@ -137,9 +137,9 @@ if st.session_state.role == "Teacher":
                 data = {"teacher": teacher_name, "student": student_name, "sentence": sentence}
                 res = requests.post(f"{API_BASE}/teacher/task", data=data)
                 if res.status_code == 200:
-                    st.success("✅ Task assigned successfully!")
+                    st.success(" Task assigned successfully!")
                 else:
-                    st.error(f"❌ Error: {res.text}")
+                    st.error(f" Error: {res.text}")
             else:
                 st.warning("Please fill in both fields before sending.")
 
@@ -168,7 +168,7 @@ if st.session_state.role == "Teacher":
 
                     # Feedback editor
                     feedback_text = st.text_area("Write feedback:", t.get('feedback', ''), key=f"f_{t['id']}")
-                    if st.button("💬 Send Feedback", key=f"fb_{t['id']}"):
+                    if st.button(" Send Feedback", key=f"fb_{t['id']}"):
                         data = {"task_id": t["id"], "feedback": feedback_text}
                         r = requests.post(f"{API_BASE}/teacher/feedback", data=data)
                         if r.status_code == 200:
@@ -191,7 +191,7 @@ if st.session_state.role == "Teacher":
 
 
 elif st.session_state.role == "Student":
-    st.title("👨‍🎓 Student Page")
+    st.title(" Student Page")
 
     # Require student name for task linking and data retrieval
     name = st.text_input("Your name:")
@@ -199,7 +199,7 @@ elif st.session_state.role == "Student":
         st.stop()
 
     # Main navigation tabs
-    tabs = st.tabs(["📚 Vocabulary", "💬 AI Dialogue", "🎙️ Speech Practice", "🗓 My Tasks"])
+    tabs = st.tabs([" Vocabulary", " AI Dialogue", "️ Speech Practice", " My Tasks"])
 
 
 
@@ -209,7 +209,7 @@ elif st.session_state.role == "Student":
     # browse all vocabulary items stored in the database.
 
     with tabs[0]:
-        st.header("📚 Vocabulary")
+        st.header(" Vocabulary")
         st.subheader("Add a new word")
 
         word = st.text_input("Norwegian word:")
@@ -229,12 +229,12 @@ elif st.session_state.role == "Student":
             }
             r = requests.post(f"{API_BASE}/vocabulary", json=data)
             if r.status_code == 201:
-                st.success("✅ Added successfully!")
+                st.success(" Added successfully!")
             else:
-                st.error("❌ Error adding word.")
+                st.error(" Error adding word.")
 
         # View existing vocabulary
-        if st.button("📂 View Vocabulary List"):
+        if st.button(" View Vocabulary List"):
             res = requests.get(f"{API_BASE}/vocabulary")
             if res.status_code == 200:
                 vocab = res.json()
@@ -246,10 +246,10 @@ elif st.session_state.role == "Student":
                         if st.button(f"🗑 Delete '{v['norwegian_word']}'", key=f"del_{v['id']}"):
                             res_del = requests.delete(f"{API_BASE}/vocabulary/{v['id']}")
                             if res_del.status_code == 200:
-                                st.success("✅ Word deleted successfully!")
+                                st.success(" Word deleted successfully!")
                                 st.rerun()
                             else:
-                                st.error("❌ Failed to delete word.")
+                                st.error(" Failed to delete word.")
 
             else:
                 st.error("Failed to load vocabulary.")
@@ -263,7 +263,7 @@ elif st.session_state.role == "Student":
     # Norwegian with translation and short tips based on difficulty level.
 
     with tabs[1]:
-        st.header("💬 AI Dialogue Practice")
+        st.header(" AI Dialogue Practice")
 
         # Keep chat history between reruns
         if "chat" not in st.session_state:
@@ -284,8 +284,8 @@ elif st.session_state.role == "Student":
                 r = requests.post(f"{API_BASE}/ai/dialogue", json=payload)
                 if r.status_code == 200:
                     data = r.json()
-                    st.session_state.chat.append(("🧑 You", msg))
-                    st.session_state.chat.append(("🤖 AI", f"{data['norwegian']}\n*{data['english']}*"))
+                    st.session_state.chat.append((" You", msg))
+                    st.session_state.chat.append((" AI", f"{data['norwegian']}\n*{data['english']}*"))
                     st.rerun()
 
         # Clear conversation
@@ -304,7 +304,7 @@ elif st.session_state.role == "Student":
     #   3. Speak freely for general pronunciation feedback
 
     with tabs[2]:
-        st.header("🎙️ Speech Practice")
+        st.header("️ Speech Practice")
         t1, t2, t3 = st.tabs(["🗣 Repeat after me", "📂 Upload", "💬 Speak freely"])
 
 
@@ -315,7 +315,7 @@ elif st.session_state.role == "Student":
             if _HAS_REC:
                 audio = mic_recorder(start_prompt="🎙 Start", stop_prompt="🛑 Stop", use_container_width=True)
                 sent = st.text_input("Sentence to practice:")
-                if audio and st.button("✅ Analyze"):
+                if audio and st.button(" Analyze"):
                     files = {"audio": ("mic.wav", audio["bytes"], "audio/wav")}
                     data = {"expected_text": sent}
                     r = requests.post(f"{API_BASE}/ai/speech/pronunciation", files=files, data=data)
@@ -402,7 +402,7 @@ elif st.session_state.role == "Student":
 
                 # Pending task → student can still practice and submit
                 if t["status"] == "pending":
-                    st.subheader("🎯 Practice before submitting")
+                    st.subheader(" Practice before submitting")
 
                     if _HAS_REC:
                         audio = mic_recorder(
@@ -413,7 +413,7 @@ elif st.session_state.role == "Student":
                         )
 
                         # Save a local attempt (not submitted yet)
-                        if audio and st.button("💾 Save Practice Attempt", key=f"save_attempt_{t['id']}"):
+                        if audio and st.button(" Save Practice Attempt", key=f"save_attempt_{t['id']}"):
                             files = {"audio": ("task_practice.wav", audio["bytes"], "audio/wav")}
                             data = {"expected_text": t["sentence"]}
                             res_ai = requests.post(f"{API_BASE}/ai/speech/pronunciation", files=files, data=data)
@@ -436,14 +436,14 @@ elif st.session_state.role == "Student":
 
                     # Display local practice attempts
                     if attempts:
-                        st.subheader("🧪 Your Attempts")
+                        st.subheader(" Your Attempts")
                         for att in attempts:
                             acc_percent = round(att["accuracy"] * 100, 1)
                             st.markdown(f"⏱ {att['timestamp']} — **Accuracy:** {acc_percent}%")
                             st.caption(f"Heard: {att['heard']}")
 
                         # Submit the best attempt to teacher
-                        if st.button("✅ Submit Final Task", key=f"submit_final_{t['id']}"):
+                        if st.button(" Submit Final Task", key=f"submit_final_{t['id']}"):
                             best_attempt = max(attempts, key=lambda a: a["accuracy"])
                             data2 = {
                                 "task_id": t["id"],
@@ -452,7 +452,7 @@ elif st.session_state.role == "Student":
                             }
                             res2 = requests.post(f"{API_BASE}/student/submit", data=data2)
                             if res2.status_code == 200:
-                                st.success("✅ Task submitted with your best attempt!")
+                                st.success(" Task submitted with your best attempt!")
                                 st.rerun()
                             else:
                                 st.error("Failed to save result to database.")

@@ -128,7 +128,7 @@ def _estimate_speech_speed_seconds(audio_path: str) -> float | None:
 #   - Compares text with expected sentence
 #   - Calculates accuracy and speed
 #   - Uses GPT to provide personalized feedback
-# ============================================================
+
 
 class WhisperSpeechToText:
     """
@@ -161,7 +161,7 @@ class WhisperSpeechToText:
 
 
     # AUDIO to  TEXT
-    #
+
     def transcribe_audio(self, temp_audio_path: str, language: str = "no") -> str:
         """
         Converts audio into text using OpenAI Whisper.
@@ -215,7 +215,7 @@ class WhisperSpeechToText:
 
 
     # SPEECH SPEED COMMENT
-    # ------------------------------------------------------------
+
     @staticmethod
     def _speed_comment(expected_text: str, seconds: float | None) -> str | None:
         """
@@ -234,7 +234,7 @@ class WhisperSpeechToText:
 
 
     # FULL PRONUNCIATION ANALYSIS
-    # ------------------------------------------------------------
+
     def analyze_pronunciation(self, expected_text: str, temp_audio_path: str) -> dict:
         """
         Full pipeline for pronunciation evaluation.
@@ -274,14 +274,14 @@ class WhisperSpeechToText:
             msg = (
                 "You are a professional Norwegian language tutor and pronunciation coach. "
                 "The student was asked to repeat a specific Norwegian sentence.\n\n"
-                f"🎯 Target sentence (expected): {expected_text}\n"
-                f"🎙️ Heard (transcribed by Whisper): {transcribed_text}\n"
-                f"📊 Similarity score: {accuracy_percent}%\n\n"
+                f" Target sentence (expected): {expected_text}\n"
+                f" Heard (transcribed by Whisper): {transcribed_text}\n"
+                f" Similarity score: {accuracy_percent}%\n\n"
                 "Give feedback in this structure:\n"
-                "1️⃣ **Norwegian Feedback:** 2–3 sentences in Norwegian — supportive and clear.\n"
-                "2️⃣ **English Translation:** Translate your feedback to English.\n"
-                "3️⃣ **Detailed Evaluation (English):** Comment briefly on pronunciation, grammar, and meaning.\n"
-                "4️⃣ **Practical Tips:** Up to 3 short, specific tips for improvement.\n\n"
+                "1️. **Norwegian Feedback:** 2–3 sentences in Norwegian — supportive and clear.\n"
+                "2️. **English Translation:** Translate your feedback to English.\n"
+                "3️. **Detailed Evaluation (English):** Comment briefly on pronunciation, grammar, and meaning.\n"
+                "4️. **Practical Tips:** Up to 3 short, specific tips for improvement.\n\n"
                 "Keep tone friendly and encouraging — max 8–10 sentences."
             )
 

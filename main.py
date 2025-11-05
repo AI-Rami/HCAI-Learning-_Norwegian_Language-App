@@ -45,7 +45,7 @@ load_dotenv()
 
 # Creates the FastAPI application.
 # CORS middleware allows the frontend (Streamlit) to connect.
-# ============================================================
+
 
 app = FastAPI(
     title="Norwegian Learning API",
@@ -224,7 +224,7 @@ def delete_vocabulary(vocabulary_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Vocabulary not found")
     db.delete(vocab)
     db.commit()
-    return {"message": f"✅ Word {vocabulary_id} deleted successfully"}
+    return {"message": f" Word {vocabulary_id} deleted successfully"}
 
 
 
@@ -256,15 +256,15 @@ def reset_dialogue():
     """Clear previous chat memory."""
     global dialogue_ai
     dialogue_ai.reset()
-    return {"message": "🧹 Chat history cleared."}
+    return {"message": " Chat history cleared."}
 
 
-# ============================================================
+
 # SPEECH ENDPOINTS (Whisper + GPT)
-# ============================================================
-# 1. /ai/speech/pronunciation → compares student’s pronunciation with target sentence
-# 2. /ai/speech/free_feedback → general feedback on free speech
-# ============================================================
+
+# 1. /ai/speech/pronunciation it compares student’s pronunciation with target sentence
+# 2. /ai/speech/free_feedback it general feedback on free speech
+
 
 @app.post("/ai/speech/pronunciation")
 async def check_pronunciation(
@@ -301,7 +301,7 @@ async def check_pronunciation(
 
 @app.post("/ai/speech/free_feedback")
 async def free_feedback(audio: UploadFile = File(...)):
-    """Give general pronunciation and fluency feedback (no score)."""
+    """Give general pronunciation and fluency feedback """
     global speech_ai
     temp_audio_path = f"temp_{audio.filename}"
 
@@ -326,7 +326,7 @@ async def free_feedback(audio: UploadFile = File(...)):
             max_tokens=350,
             messages=[
                 {"role": "system", "content": "Be warm and natural like a real Norwegian teacher."},
-                {"role": "user", "content": msg + f"\n\n🎧 Speech:\n{heard}"},
+                {"role": "user", "content": msg + f"\n\n Speech:\n{heard}"},
             ],
         )
 
@@ -346,12 +346,12 @@ async def free_feedback(audio: UploadFile = File(...)):
             os.remove(temp_audio_path)
 
 
-# ============================================================
+
 # TEACHER–STUDENT ENDPOINTS
-# ============================================================
+
 # Teachers can assign tasks.
 # Students can see, practice, submit, and get feedback.
-# ============================================================
+
 
 @app.post("/teacher/task")
 def assign_task(
@@ -412,12 +412,12 @@ def review_tasks(db: Session = Depends(get_db)):
     return db.query(Task).order_by(Task.created_at.desc()).all()
 
 
-# ============================================================
+
 # TASK ATTEMPTS (RETRY SYSTEM)
-# ============================================================
+
 # Students can record several practice attempts before submitting.
 # Each attempt is stored separately.
-# ============================================================
+
 
 @app.post("/student/retry")
 async def record_attempt(
@@ -480,14 +480,8 @@ def get_attempts(task_id: int, db: Session = Depends(get_db)):
     ]
 
 
-# ============================================================
-# RUN THE SERVER (LOCAL USE)
-# ============================================================
-# Use this only for testing locally:
-#     python main.py
-# For deployment, use:
-#     uvicorn main:app
-# ============================================================
+
+
 
 if __name__ == "__main__":
     import uvicorn
