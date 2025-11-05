@@ -1,44 +1,54 @@
 """
 seed_data.py
+
+Initial Data Setup Script for the Norwegian Language App
+
+
+Purpose:
+This file fills the database with a few example Norwegian words.
+It helps during setup or testing to make sure the app shows
+some vocabulary entries right away — so the interface doesn’t start empty.
+
+How it works:
 -------------
-Populates the Norwegian Learning App database with sample vocabulary data.
+1. Connects to the existing SQLite database.
+2. Ensures that the Vocabulary table exists.
+3. Inserts a few sample Norwegian–English word pairs with examples.
+4. Commits (saves) the data and closes the database session.
 
- Purpose:
-Inserts a few basic Norwegian words with English translations and examples.
-Used once during setup to create a small starting dataset.
-
-
+this file usually runs once after creating the database.
 """
 
-# ============================================================
-#  IMPORTS
-# ------------------------------------------------------------
-# - database: for the Vocabulary model and session
-# ============================================================
+
+# IMPORTS
+
+# Imports the database functions and models.
+# These allow creating sessions and adding data.
+
 
 from database import SessionLocal, Vocabulary, init_db
 
 
-# ============================================================
-#  DATABASE SETUP
-# ------------------------------------------------------------
-# Ensures that norwegian_app.db exists and has the Vocabulary table.
-# Then opens a session for inserting data.
-# ============================================================
+# INITIALIZE DATABASE
+
+# Makes sure the database file and Vocabulary table exist.
+# Then creates a session to communicate with the database.
+
 
 init_db()
 db = SessionLocal()
 
 
-# ============================================================
-#  ADD SAMPLE VOCABULARY DATA
-# ------------------------------------------------------------
-# Each entry includes:
-#   - Norwegian word
+# SAMPLE VOCABULARY DATA
+
+# A few simple Norwegian words to test the app.
+# Each word includes:
+#   - Norwegian form
 #   - English translation
-#   - Category and difficulty level
-#   - Optional example sentence
-# ============================================================
+#   - Category (like noun, verb, greeting)
+#   - Difficulty level (1–5)
+#   - Example sentence for context
+
 
 vocab_samples = [
     Vocabulary(
@@ -72,14 +82,14 @@ vocab_samples = [
 ]
 
 
-# ============================================================
-#  COMMIT DATA
-# ------------------------------------------------------------
-# Adds all vocabulary items to the database, saves, and closes.
-# ============================================================
+# COMMIT AND CLOSE SESSION
+
+# Adds all vocabulary entries to the database, saves changes,
+# then closes the connection cleanly.
+
 
 db.add_all(vocab_samples)
 db.commit()
 db.close()
 
-print("🎉 Vocabulary seeding completed successfully (norwegian_app.db)")
+print(" Vocabulary seeding completed successfully (norwegian_app.db)")

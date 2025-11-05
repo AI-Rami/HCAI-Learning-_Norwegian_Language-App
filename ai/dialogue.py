@@ -1,30 +1,44 @@
 """
 dialogue.py
 ------------
-AI module for Norwegian language tutoring (GPT-based).
 
- Purpose:
-Provides a conversational Norwegian tutor powered by OpenAI GPT models.
-It detects when the user writes in Norwegian, corrects grammar,
-and replies with translations and short tips — adapting to learner difficulty.
+This file handles all conversational interactions between
+the learner and the AI tutor.
+
+Purpose:
+
+The goal of this module is to simulate a friendly, helpful
+Norwegian teacher who can correct grammar, explain mistakes,
+and hold short, supportive conversations in Norwegian.
+
+It automatically detects whether the learner writes in
+Norwegian or English and adjusts the response style.
+
+If the message is in Norwegian it gives:
+  - A corrected version of the sentence
+  - A natural AI reply (short conversation)
+  - A simple grammar or vocabulary tip
+
+If the message is in English it translates the text and replies
+in Norwegian (with English translation below).
 
 Structure:
-  1. Imports and setup
-  2. Class NorwegianDialogueAI
-     • Initialization and API setup
-     • Message handling and difficulty adjustment
-     • Language detection (Norwegian vs. English)
-     • Response generation with structured format
+1. Imports and environment setup
+2. Class NorwegianDialogueAI:
+   - Initialization (OpenAI setup)
+   - Reset chat memory
+   - Detect language (English vs. Norwegian)
+   - Generate structured GPT replies
 """
 
-# ============================================================
-#  IMPORTS & SETUP
-# ------------------------------------------------------------
-# os — for environment variables (API key)
-# logging — to record GPT responses or errors
-# re — used for quick detection of Norwegian characters/words
-# OpenAI — official Python SDK for GPT calls
-# dotenv — loads the API key from .env file
+
+# IMPORTS AND SETUP
+
+# os — to access environment variables (for API key)
+# logging — for saving GPT responses and errors
+# re — regular expressions for language detection
+# OpenAI — for accessing GPT models ( gpt-4o)
+# dotenv — to load .env file containing the OpenAI API key
 # ============================================================
 
 import os
@@ -33,122 +47,140 @@ import re
 from openai import OpenAI
 from dotenv import load_dotenv
 
-# Load environment variables (expects OPENAI_API_KEY in .env)
+# Load API key from .env file
 load_dotenv()
+
+# Basic logging (prints GPT activity and any errors)
 logging.basicConfig(level=logging.INFO)
 
 
-# ============================================================
-#  CLASS: NorwegianDialogueAI
-# ------------------------------------------------------------
-# This class wraps GPT so that it behaves like a Norwegian language tutor.
-# Key features:
-#   • Grammar correction for Norwegian text
-#   • English translation and short grammar explanations
-#   • Adaptive difficulty (Beginner / Intermediate / Advanced)
-#   • Detects if input is Norwegian or English
+
+# CLASS: NorwegianDialogueAI
+#
+# Main class that manages the AI conversation.
+# It connects to GPT, handles message flow, detects language,
+# and formats structured replies for the app.
 # ============================================================
 
 class NorwegianDialogueAI:
-    """GPT-based Norwegian tutor with grammar correction and conversational flow."""
+    """GPT-based Norwegian language tutor with correction and explanation features."""
 
     def __init__(self):
-        """Initialize OpenAI client and set up API key."""
+        """
+        Initialize OpenAI client and setup memory.
+        Loads the OpenAI API key from the environment.
+        If the key is missing, it raises an error to alert the user.
+        """
         self.api_key = os.getenv("OPENAI_API_KEY")
         if not self.api_key:
             raise EnvironmentError("OPENAI_API_KEY not found in environment.")
 
-        # Initialize OpenAI client
+        # Initialize GPT client
         self.client = OpenAI(api_key=self.api_key)
 
-        # Conversation memory (keeps recent messages)
+        # Conversation history (stores recent messages for context)
         self.chat_history = []
 
-    # ------------------------------------------------------------
-    #  Reset chat memory
-    # ------------------------------------------------------------
+
+    # Reset chat memory
+
     def reset(self):
-        """Clear chat memory — useful when user presses 'Reset Chat'."""
+        """
+        Clears the chat memory.
+        This is useful when the user clicks “Reset Chat” in the app
+        to start a new clean conversation.
+        """
         self.chat_history = []
 
-    # ------------------------------------------------------------
-    #  Quick language check
-    # ------------------------------------------------------------
+
+    # Detect if text is Norwegian
+
     def _looks_norwegian(self, text: str) -> bool:
         """
-        Detect if input text is likely Norwegian.
-        - Looks for Norwegian letters (æ, ø, å)
-        - Or counts common Norwegian words
+        Quick rule-based check to see if the text is likely Norwegian.
+
+        It looks for:
+          - Norwegian special characters (æ, ø, å)
+          - Common Norwegian words (jeg, du, har, ikke, etc.)
+
+        Returns True if the input looks like Norwegian.
+        Otherwise, assumes English or another language.
         """
         text_lower = text.lower()
 
-        # If special letters appear — very likely Norwegian
+        # Check for unique Norwegian letters
         if re.search(r"[æøå]", text_lower):
             return True
 
-        # Otherwise count common Norwegian words
+        # Check for frequent Norwegian words
         common_words = ["jeg", "du", "vi", "og", "ikke", "kan", "har", "mat", "det", "er", "på", "om"]
         count = sum(word in text_lower.split() for word in common_words)
         return count >= 2  # at least two matches = likely Norwegian
 
 
+    # Generate AI Response
+
     def generate_response(self, user_message: str, difficulty: str = "beginner") -> str:
         """
-        Generate AI tutor reply with grammar correction and explanation.
-        Automatically detects if input is Norwegian or English and adapts reply.
+        Generate a reply from GPT that fits the learner’s level and language.
+
+        How it works:
+
+        1. Detects if the message is written in Norwegian or English.
+        2. Builds a GPT “system prompt” that sets the tutor’s tone and rules.
+        3. Sends the message and context history to GPT.
+        4. Receives a structured answer that includes:
+           Correction , Translation, Grammar tip or feedback
+        5. Saves the interaction in chat history.
+
+        Difficulty levels:
+
+        - beginner: simple sentences, English explanations
+        - intermediate: mostly Norwegian, with short English help
+        - advanced: fluent Norwegian + cultural notes
         """
+
+        # Step 1: Detect language
         is_norwegian = self._looks_norwegian(user_message)
 
-        # ============================================================
-        #  SYSTEM PROMPT — defines GPT's role and tone
-        # ------------------------------------------------------------
-        # GPT behaves as a friendly tutor.
-        # Replies differ depending on whether the user wrote in Norwegian or English.
-        # Difficulty setting changes how much English support the AI provides.
-        # ============================================================
-
+        # Step 2: Build GPT system prompt depending on language type
         if is_norwegian:
-            # The learner wrote in Norwegian → provide correction + feedback
+
             system_prompt = (
-                "You are an experienced and supportive Norwegian language tutor helping learners improve "
-                "their grammar, fluency, and confidence through dialogue.\n\n"
-                "When the learner writes in Norwegian, always reply using the exact structure below:\n\n"
-                "📝 **Correction (Norwegian):** Rewrite the learner’s sentence correctly. "
-                "Keep it simple and clear — show proper word order and grammar.\n"
-                "💬 **AI (Norwegian):** Respond naturally in Norwegian using one or two short sentences, "
-                "as if continuing a real conversation.\n"
+                "You are a kind and experienced Norwegian language tutor helping learners "
+                "improve grammar, vocabulary, and confidence through short dialogues.\n\n"
+                "When the learner writes in Norwegian, reply using this format:\n\n"
+                " **Correction (Norwegian):** Rewrite the learner’s sentence correctly. "
+                "Keep it simple and correct any grammar or spelling mistakes.\n"
+                " **AI (Norwegian):** Continue the conversation naturally in one or two short sentences.\n"
                 "_Add the English translation below in italics._\n"
-                "💡 **Tip (English):** Briefly explain one grammar or vocabulary point that will help the learner "
-                "improve next time. Keep it concise and kind.\n\n"
-                "Use tone that feels human, patient, and encouraging.\n"
-                "Adapt your reply to the learner’s level:\n"
-                "- **Beginner:**  short, simple Norwegian + clear English translation + gentle correction.\n"
-                "- **Intermediate:** Mostly Norwegian, English only for hard phrases. Correct naturally.\n"
-                "- **Advanced:** Use fluent Norwegian with cultural or idiomatic notes instead of grammar tips.\n\n"
+                " **Tip (English):** Explain grammar or vocabulary points "
+                "that can help the learner next time. Be supportive and positive.\n\n"
+                "Adjust your style based on the learner’s level:\n"
+                "- Beginner:  short, simple Norwegian with clear English translation.\n"
+                "- Intermediate: more Norwegian, English only for difficult parts.\n"
+                "- Advanced: fluent Norwegian and cultural/idiomatic notes.\n\n"
                 f"The learner’s current level is: {difficulty}."
             )
         else:
-            # The learner wrote in English → translate and respond in Norwegian
+            # The learner wrote in English
+            # translate into Norwegian and give the English version below
             system_prompt = (
                 "You are a Norwegian language tutor. "
-                "The learner has written in English — reply by translating into Norwegian and include "
-                "the English version below in italics.\n"
-                "Do not add corrections or grammar notes in this case.\n"
-                f"Keep your answer at the language complexity of a {difficulty} learner."
+                "The learner has written in English — translate the message into Norwegian, "
+                "and then provide the English version below in italics.\n"
+                "Do not give grammar corrections here, only translation.\n"
+                f"Keep your language at a {difficulty} level."
             )
 
-        # ------------------------------------------------------------
-        #  Maintain short conversation memory (for context)
-        # ------------------------------------------------------------
+        # Step 3: Keep conversation memory short (avoid long history)
         if len(self.chat_history) > 10:
             self.chat_history = self.chat_history[-10:]
 
-        # Add latest user message
+        # Add user message to memory
         self.chat_history.append({"role": "user", "content": user_message})
 
-        # ------------------------------------------------------------
-        #  Send to GPT and return the structured reply
-        # ------------------------------------------------------------
+        # Step 4: Send messages to GPT
         try:
             messages = [{"role": "system", "content": system_prompt}] + self.chat_history
 
@@ -159,21 +191,24 @@ class NorwegianDialogueAI:
                 max_tokens=400,
             )
 
+            # Extract GPT’s reply as plain text
             reply_text = response.choices[0].message.content.strip()
 
-            # Add assistant reply to memory
+            # Save AI reply to chat memory
             self.chat_history.append({"role": "assistant", "content": reply_text})
 
             logging.info(f"GPT reply: {reply_text}")
             return reply_text
 
         except Exception as e:
-            # Handles network errors or invalid responses
+            # If GPT fails (no internet, wrong key, etc.)
             logging.error(f"GPT API error: {e}")
             return (
                 "Beklager, jeg kan ikke svare akkurat nå.\n"
-                "Sorry, I can't reply right now. (offline fallback)"
+                "Sorry, I can't reply right now. (offline mode)"
             )
+
+
 
 
 if __name__ == "__main__":
