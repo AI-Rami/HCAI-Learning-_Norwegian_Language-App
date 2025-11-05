@@ -50,7 +50,7 @@ API_BASE = "http://localhost:8000"
 
 
 # Online Deployment :
-# API_BASE = "https://norwegian-ai-backend.onrender.com"
+ # API_BASE = "https://norwegian-ai-backend.onrender.com"
 
 # Page layout setup
 st.set_page_config(page_title="Norwegian Learning App", page_icon="🇳🇴", layout="centered")

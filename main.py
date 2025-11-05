@@ -13,9 +13,9 @@ Students can learn words, practice pronunciation, and chat with AI.
 Teachers can assign tasks, check results, and give feedback.
 """
 
-# ============================================================
+
 # IMPORTS
-# ============================================================
+
 # FastAPI: framework that runs the backend API.
 # SQLAlchemy: connects and saves data to the database.
 # Pydantic: checks incoming and outgoing data formats.
@@ -40,9 +40,9 @@ from ai.speech import WhisperSpeechToText
 # Load OpenAI key and any other environment variables from .env
 load_dotenv()
 
-# ============================================================
+
 # APP SETUP
-# ============================================================
+
 # Creates the FastAPI application.
 # CORS middleware allows the frontend (Streamlit) to connect.
 # ============================================================
@@ -55,7 +55,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # Allow all origins (safe for local use)
+    allow_origins=["*"],      # Allow all origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -74,11 +74,11 @@ def startup_event():
     speech_ai = WhisperSpeechToText()    # Whisper for pronunciation
 
 
-# ============================================================
+
 # USER ENDPOINTS
-# ============================================================
+
 # Manage students and teachers in the database.
-# ============================================================
+
 
 class UserCreate(BaseModel):
     username: str
@@ -108,11 +108,8 @@ def list_users(role: Optional[str] = None, db: Session = Depends(get_db)):
     return q.order_by(User.created_at.desc()).all()
 
 
-# ============================================================
+#
 # DATA MODELS FOR REQUESTS AND RESPONSES
-# ============================================================
-# These describe the data format expected by FastAPI.
-# ============================================================
 
 class VocabularyCreate(BaseModel):
     norwegian_word: str
@@ -147,18 +144,18 @@ class DialogueResponse(BaseModel):
     explanation: str
 
 
-# ============================================================
+
 # ROOT AND HEALTH ENDPOINTS
-# ============================================================
+
 # Used to test that the API is online.
-# ============================================================
+
 
 @app.get("/")
 def read_root():
     """Main page for the API. Shows available routes."""
     return {
         "message": "Welcome to the Norwegian Learning API",
-        "version": "2.1.0",
+        "version": "2.2.0",
         "available_endpoints": [
             "/vocabulary", "/ai/dialogue", "/ai/speech/pronunciation", "/ai/speech/free_feedback"
         ],
@@ -171,12 +168,12 @@ def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow()}
 
 
-# ============================================================
+
 # VOCABULARY ENDPOINTS
-# ============================================================
+
 # Let the app store and read vocabulary words.
 # Students can add new words and view existing ones.
-# ============================================================
+
 
 @app.get("/vocabulary", response_model=List[VocabularyResponse])
 def get_vocabulary(
@@ -186,7 +183,7 @@ def get_vocabulary(
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    """Get all vocabulary words (you can filter by category or level)."""
+    """Get all vocabulary words """
     query = db.query(Vocabulary)
     if category:
         query = query.filter(Vocabulary.category == category)
@@ -230,12 +227,12 @@ def delete_vocabulary(vocabulary_id: int, db: Session = Depends(get_db)):
     return {"message": f"✅ Word {vocabulary_id} deleted successfully"}
 
 
-# ============================================================
+
 # AI DIALOGUE ENDPOINTS
-# ============================================================
+
 # Handles chat between the user and GPT-based Norwegian tutor.
 # The AI adapts to the user's difficulty level.
-# ============================================================
+
 
 @app.post("/ai/dialogue", response_model=DialogueResponse)
 def practice_dialogue(request: DialogueRequest):
