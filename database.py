@@ -1,11 +1,9 @@
 """
 database.py
-------------
 Database structure for the Norwegian Language Learning App
 
 
 Purpose:
---------
 This file defines the database used by both the backend (FastAPI)
 and the frontend (Streamlit). It stores all main data about users,
 vocabulary, tasks, and practice attempts.

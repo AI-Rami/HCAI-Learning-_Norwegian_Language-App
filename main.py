@@ -1,6 +1,6 @@
 """
 main.py
---------
+
 Backend (FastAPI) for the Norwegian Language Learning App.
 
 This file runs the API that connects to:
@@ -21,7 +21,7 @@ Teachers can assign tasks, check results, and give feedback.
 # Pydantic: checks incoming and outgoing data formats.
 # dotenv: loads environment variables like the OpenAI key.
 # datetime: helps store timestamps.
-# ============================================================
+
 
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Body
 from fastapi.middleware.cors import CORSMiddleware

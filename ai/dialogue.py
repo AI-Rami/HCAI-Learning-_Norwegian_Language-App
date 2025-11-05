@@ -39,7 +39,7 @@ Structure:
 # re — regular expressions for language detection
 # OpenAI — for accessing GPT models ( gpt-4o)
 # dotenv — to load .env file containing the OpenAI API key
-# ============================================================
+
 
 import os
 import logging
@@ -60,7 +60,7 @@ logging.basicConfig(level=logging.INFO)
 # Main class that manages the AI conversation.
 # It connects to GPT, handles message flow, detects language,
 # and formats structured replies for the app.
-# ============================================================
+
 
 class NorwegianDialogueAI:
     """GPT-based Norwegian language tutor with correction and explanation features."""

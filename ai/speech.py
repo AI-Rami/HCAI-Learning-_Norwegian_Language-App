@@ -35,7 +35,7 @@ Structure:
 # io: Used for reading files in buffered format
 # pydub: Estimate audio length and speech pace
 # openai: Used to connect to Whisper and GPT models
-# ============================================================
+
 
 import os
 from difflib import SequenceMatcher
@@ -321,7 +321,7 @@ class WhisperSpeechToText:
 
 
     # WORD HIGHLIGHT VISUALIZATION
-    # ------------------------------------------------------------
+    #
     @staticmethod
     def _highlight_words(expected: str, heard: str) -> str:
         """
