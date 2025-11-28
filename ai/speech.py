@@ -278,10 +278,10 @@ class WhisperSpeechToText:
                 f" Heard (transcribed by Whisper): {transcribed_text}\n"
                 f" Similarity score: {accuracy_percent}%\n\n"
                 "Give feedback in this structure:\n"
-                "1️. **Norwegian Feedback:** 2–3 sentences in Norwegian — supportive and clear.\n"
-                "2️. **English Translation:** Translate your feedback to English.\n"
-                "3️. **Detailed Evaluation (English):** Comment briefly on pronunciation, grammar, and meaning.\n"
-                "4️. **Practical Tips:** Up to 3 short, specific tips for improvement.\n\n"
+                "1️. Norwegian Feedback: 2–3 sentences in Norwegian — supportive and clear.\n"
+                "2️. English Translation: Translate your feedback to English.\n"
+                "3️. Detailed Evaluation (English): Comment briefly on pronunciation, grammar, and meaning.\n"
+                "4️. Practical Tips: Up to 3 short, specific tips for improvement.\n\n"
                 "Keep tone friendly and encouraging — max 8–10 sentences."
             )
 
@@ -321,7 +321,7 @@ class WhisperSpeechToText:
 
 
     # WORD HIGHLIGHT VISUALIZATION
-    #
+
     @staticmethod
     def _highlight_words(expected: str, heard: str) -> str:
         """

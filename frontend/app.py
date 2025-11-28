@@ -87,8 +87,8 @@ if st.session_state.role is None:
     st.markdown("""
     Choose your role to continue:
 
-    - ** Student:** Learn Norwegian, practice speaking, and complete your tasks.
-    - ** Teacher:** Assign and review pronunciation tasks.
+    -  🎓Student: Learn Norwegian, practice speaking, and complete your tasks.
+    -    Teacher: Assign and review pronunciation tasks.
     """)
     choice = st.radio("Select your role:", ["Student", "Teacher"])
     if st.button(" Continue"):
@@ -160,11 +160,11 @@ if st.session_state.role == "Teacher":
                 with st.expander(f"🎓 {t['student']} — {t['sentence']}"):
                     raw_acc = t.get("accuracy", None)
                     if raw_acc is not None:
-                        st.markdown(f"**Accuracy:** {round(raw_acc * 100, 1)}%")
+                        st.markdown(f"Accuracy: {round(raw_acc * 100, 1)}%")
                     else:
-                        st.markdown("**Accuracy:** -")
-                    st.markdown(f"**Heard:** {t.get('heard', '-')}")  # student’s transcribed speech
-                    st.markdown(f"**Status:** {t.get('status', '-')}")
+                        st.markdown("Accuracy: -")
+                    st.markdown(f"Heard: {t.get('heard', '-')}")  # student’s transcribed speech
+                    st.markdown(f"Status: {t.get('status', '-')}")
 
                     # Feedback editor
                     feedback_text = st.text_area("Write feedback:", t.get('feedback', ''), key=f"f_{t['id']}")
@@ -347,7 +347,7 @@ elif st.session_state.role == "Student":
                         acc = out.get("accuracy", 0)
                         acc_display = round(acc * 100, 1) if acc <= 1 else round(acc, 1)
                         st.progress(acc_display / 100)
-                        st.markdown(f"**Accuracy:** {acc_display}%")
+                        st.markdown(f"Accuracy: {acc_display}%")
                         st.write(out.get("feedback", ""))
                         st.caption(f"Expected: {out['expected']} | Heard: {out['heard']}")
                 else:
@@ -395,7 +395,7 @@ elif st.session_state.role == "Student":
 
             for t in tasks:
                 st.markdown(f"### Sentence: {t['sentence']}")
-                st.markdown(f"**Status:** {t['status']}")
+                st.markdown(f" Status: {t['status']}")
 
                 task_key = f"task_{t['id']}"
                 attempts = st.session_state.practice_attempts.get(task_key, [])
@@ -439,7 +439,7 @@ elif st.session_state.role == "Student":
                         st.subheader(" Your Attempts")
                         for att in attempts:
                             acc_percent = round(att["accuracy"] * 100, 1)
-                            st.markdown(f"⏱ {att['timestamp']} — **Accuracy:** {acc_percent}%")
+                            st.markdown(f"⏱ {att['timestamp']} — Accuracy: {acc_percent}%")
                             st.caption(f"Heard: {att['heard']}")
 
                         # Submit the best attempt to teacher
@@ -461,9 +461,9 @@ elif st.session_state.role == "Student":
 
                 # Completed task → show accuracy and teacher feedback
                 else:
-                    st.markdown(f"**Accuracy:** {round(t.get('accuracy', 0.0) * 100, 1)}%")
-                    st.markdown(f"**Heard:** {t.get('heard', '-')}")
-                    st.markdown(f"**Teacher Feedback:** {t.get('feedback', '-')}")
+                    st.markdown(f"Accuracy: {round(t.get('accuracy', 0.0) * 100, 1)}%")
+                    st.markdown(f"Heard: {t.get('heard', '-')}")
+                    st.markdown(f"Teacher Feedback: {t.get('feedback', '-')}")
                     st.markdown("---")
 
         else:
